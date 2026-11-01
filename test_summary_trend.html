@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Summary Yield / Bin Trend 分析工具</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface-1:#fcfcfb; --surface-2:#f3f2ee;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --good-text:#006300;
+  --accent:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface-1:#1a1a19; --surface-2:#242422;
+    --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --good-text:#0ca30c; --accent:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface-1:#1a1a19; --surface-2:#242422;
+  --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --good-text:#0ca30c; --accent:#3987e5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text-primary);font:14px/1.45 system-ui,-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;background:var(--surface-1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0 12px 0 0;font-weight:650}
+button,select,input,label.btn{font:inherit;color:inherit}
+button,label.btn{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 11px;cursor:pointer;white-space:nowrap}
+button:hover,label.btn:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:transparent}
+select,input[type=date],input[type=text],input[type=number]{background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:4px 6px}
+main{padding:14px 18px 60px;max-width:1500px;margin:0 auto}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 4px;font-weight:650}
+.card .sub{color:var(--text-secondary);font-size:12.5px;margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters .row>label{display:flex;flex-direction:column;font-size:12px;color:var(--text-secondary);gap:2px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:1000px){.grid2{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.kpi .k{font-size:12px;color:var(--text-secondary)}
+.kpi .v{font-size:24px;font-weight:650;margin-top:2px}
+.kpi .d{font-size:12px;color:var(--text-muted)}
+#drop{border:2px dashed var(--axis);border-radius:10px;padding:26px;text-align:center;color:var(--text-secondary)}
+#drop.over{border-color:var(--accent);background:var(--surface-2)}
+.chart{position:relative;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-secondary);margin:2px 0 6px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.legend i.dot{width:9px;height:9px;border-radius:50%}
+svg text{fill:var(--text-muted);font-size:11px;font-variant-numeric:tabular-nums}
+svg .lbl{fill:var(--text-secondary);font-size:11.5px}
+svg .val{fill:var(--text-primary);font-size:11.5px}
+#tip{position:fixed;pointer-events:none;z-index:50;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12.5px;box-shadow:0 4px 16px rgba(0,0,0,.18);display:none;max-width:340px}
+#tip .t{font-weight:650;margin-bottom:3px}
+#tip .r{display:flex;justify-content:space-between;gap:16px;font-variant-numeric:tabular-nums}
+#tip .r span:first-child{color:var(--text-secondary)}
+#tip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:4px 7px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--surface-2);color:var(--text-secondary);font-weight:600;cursor:pointer;user-select:none;z-index:1}
+td.l,th.l{text-align:left}
+.tablewrap{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.heat td{text-align:center;min-width:46px}
+.tag{display:inline-block;font-size:11px;padding:0 5px;border-radius:4px;border:1px solid var(--border);color:var(--text-secondary);margin-left:4px}
+.st-bad{color:var(--critical);font-weight:600}
+.st-good{color:var(--good-text);font-weight:600}
+.warnbox{font-size:12.5px;color:var(--text-secondary);max-height:160px;overflow:auto}
+.warnbox div::before{content:"⚠ ";color:var(--warning)}
+.bins-pick{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px}
+.bins-pick label{display:flex;align-items:center;gap:3px;cursor:pointer}
+.bins-pick .sw{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid var(--axis)}
+.empty{color:var(--text-muted);padding:30px;text-align:center}
+.ctools{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin:2px 0 8px;font-size:12.5px;color:var(--text-secondary)}
+.ctools>span.lab{display:inline-flex;align-items:center;gap:6px}
+.cseg button{padding:3px 9px;font-size:12.5px}
+.cnote{font-size:12px;color:var(--text-muted);margin:-2px 0 6px}
+/* 放大檢視（⛶）：卡片 / 流程圖變成置中大視窗 */
+.zbtn{float:right;padding:1px 9px;font-size:15px;line-height:1.35;margin-left:8px;font-weight:400}
+.card.zoomed,figure.flow.zoomed{position:fixed;inset:3vh 3vw;z-index:40;overflow:auto;margin:0;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+figure.flow{position:relative}
+figure.flow .zbtn{position:absolute;top:8px;right:8px;float:none;z-index:1}
+figure.flow.zoomed{background:var(--page);display:flex;align-items:center;justify-content:center}
+figure.flow.zoomed svg{max-width:none!important;width:auto;height:calc(94vh - 40px);max-height:calc(94vh - 40px)}
+#zoomBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
+body.zooming{overflow:hidden}
+#tip{z-index:80!important}
+.page-updated{max-width:1500px;margin:0 auto;padding:10px 18px 28px;color:var(--text-muted);font-size:12.5px;text-align:center;border-top:1px solid var(--border)}
+.card.zoomed .tablewrap{max-height:none!important}
+.hidden{display:none!important}
+.muted{color:var(--text-muted)}
+code{background:var(--surface-2);padding:1px 4px;border-radius:4px;font-size:12px}
+details summary{cursor:pointer;color:var(--text-secondary)}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tabs button.on{background:var(--accent);color:#fff;border-color:transparent}
+/* 收合區塊：點 h2 */
+.card[data-collapse]>h2{cursor:pointer;user-select:none}
+.card[data-collapse]>h2::before{content:"▾";display:inline-block;width:16px;color:var(--text-muted);transition:transform .15s}
+.card.collapsed>h2::before{transform:rotate(-90deg)}
+.card.collapsed>:not(h2){display:none!important}
+.card.collapsed{padding-bottom:10px}
+/* 多選篩選 */
+.fsum{font-weight:400;font-size:12.5px;color:var(--text-secondary);margin-left:8px}
+.fsum .chip{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:0 8px;margin:0 3px 0 0;font-size:12px}
+.fsum .chip b{color:var(--accent);font-weight:600}
+.fsum .chip a{cursor:pointer;margin-left:4px;color:var(--text-muted)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;align-items:start}
+.fgroup{border:1px solid var(--border);border-radius:8px;background:var(--surface-1)}
+.fgroup>summary{padding:6px 10px;cursor:pointer;font-weight:600;display:flex;gap:6px;align-items:center;list-style:none}
+.fgroup>summary::-webkit-details-marker{display:none}
+.fgroup>summary::before{content:"▸";color:var(--text-muted);transition:transform .15s}
+.fgroup[open]>summary::before{transform:rotate(90deg)}
+.fgroup>summary .fc{margin-left:auto;font-weight:400;font-size:12px;color:var(--text-secondary)}
+.fgroup>summary .fc.on{color:var(--accent);font-weight:600}
+.fgroup .fbar{display:flex;gap:4px;padding:0 8px 6px}
+.fgroup .fbar input{flex:1;min-width:0;padding:2px 6px}
+.fgroup .fbar button{padding:1px 7px;font-size:12px}
+.fgroup .flist{max-height:190px;overflow:auto;padding:0 4px 6px 8px;font-size:12.5px}
+.fgroup .flist label{display:flex;align-items:center;gap:5px;padding:1px 2px;border-radius:4px;cursor:pointer}
+.fgroup .flist label:hover{background:var(--surface-2)}
+.fgroup .flist .n{margin-left:auto;white-space:nowrap;color:var(--text-muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.fgroup .flist .only{visibility:hidden;color:var(--accent);font-size:11.5px;padding:0 2px}
+.fgroup .flist label:hover .only{visibility:visible}
+.fgroup .flist .d{color:var(--text-muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}
+/* 篩選工具列：找篩選 + 位置切換 */
+.ftools{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+#fFind{flex:1;min-width:180px;padding:5px 9px}
+.seg{display:inline-flex}
+.seg button{border-radius:0;margin-left:-1px;padding:4px 9px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+.seg button.on{background:var(--accent);color:#fff;border-color:transparent}
+.fspacer{flex:1}
+.fbtns{display:flex;gap:8px;flex-wrap:wrap}
+.fhide,.fhide2{display:none!important}
+/* 篩選在左 / 右側（sidebar） */
+body.fpos-left main,body.fpos-right main{max-width:none}
+body.fpos-left #app,body.fpos-right #app{display:grid;gap:14px;align-items:start;grid-template-columns:330px minmax(0,1fr)}
+body.fpos-right #app{grid-template-columns:minmax(0,1fr) 330px}
+body.fpos-right #filterCard{order:2}
+body.fpos-left #filterCard,body.fpos-right #filterCard{position:sticky;top:calc(var(--hdr,60px) + 8px);max-height:calc(100vh - var(--hdr,60px) - 20px);overflow:auto;margin-bottom:0}
+body.fpos-left .fgrid,body.fpos-right .fgrid{grid-template-columns:1fr}
+body.fpos-left .frow>label,body.fpos-right .frow>label{flex:1 1 130px}
+body.fpos-left .frow input,body.fpos-left .frow select,body.fpos-right .frow input,body.fpos-right .frow select{width:100%!important}
+body.fpos-left .fspacer,body.fpos-right .fspacer{display:none}
+body.fpos-left .fsum,body.fpos-right .fsum{display:block;margin:4px 0 0}
+/* sidebar 收合 → 窄條，標題直排 */
+body.fpos-left #app.fcol{grid-template-columns:46px minmax(0,1fr)}
+body.fpos-right #app.fcol{grid-template-columns:minmax(0,1fr) 46px}
+body.fpos-left #filterCard.collapsed,body.fpos-right #filterCard.collapsed{padding:12px 6px;overflow:hidden}
+body.fpos-left #filterCard.collapsed>h2,body.fpos-right #filterCard.collapsed>h2{writing-mode:vertical-rl;white-space:nowrap;margin:0 auto}
+body.fpos-left #filterCard.collapsed .fsum,body.fpos-right #filterCard.collapsed .fsum{display:none}
+@media (max-width:900px){ body.fpos-left #app,body.fpos-right #app{display:block} body.fpos-left #filterCard,body.fpos-right #filterCard{position:static;max-height:none;margin-bottom:14px} }
+#busy{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:60;background:var(--accent);color:#fff;padding:8px 18px;border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.25);font-weight:600}
+.st-hold{color:var(--critical);font-weight:700}
+.st-pend{color:var(--text-secondary);font-weight:600}
+td.viol{box-shadow:inset 0 0 0 2px var(--critical);font-weight:700}
+
+/* ===== 語言切換（說明頁 / 工具列） ===== */
+:root[data-lang="en"] .zh{display:none!important}
+:root:not([data-lang="en"]) .en{display:none!important}
+button.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface-2))}
+/* ===== 說明頁 README ===== */
+body:not(.docs-on) #docs{display:none}
+body.docs-on main>section:not(#docs){display:none!important}
+#docs{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}
+.dtoc{position:sticky;top:calc(var(--hdr,56px) + 12px);background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;max-height:calc(100vh - var(--hdr,56px) - 30px);overflow:auto}
+.dtoc-h{font-weight:650;font-size:12.5px;color:var(--text-secondary);padding:2px 8px 6px}
+.dtoc a{color:var(--text-primary);text-decoration:none;padding:4px 8px;border-radius:6px;font-size:13px}
+.dtoc a.sub2{padding-left:20px;color:var(--text-secondary);font-size:12.5px}
+.dtoc a:hover{background:var(--surface-2);color:var(--accent)}
+.dbody .card{padding:16px 22px;scroll-margin-top:calc(var(--hdr,56px) + 10px)}
+.dbody h3{scroll-margin-top:calc(var(--hdr,56px) + 10px)}
+.dbody h2{font-size:17px;margin:0 0 10px}
+.dbody h2.dtitle{font-size:19px}
+.dbody h3{font-size:15px;margin:22px 0 8px;padding-top:12px;border-top:1px solid var(--grid)}
+.dbody p,.dbody li,.dbody dd{font-size:13.5px;line-height:1.65}
+.dbody a{color:var(--accent)}
+.dbody code{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:12.5px}
+.dbody pre{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;overflow:auto;font-size:12.5px;line-height:1.5}
+.dbody .note{border-left:3px solid var(--accent);padding:6px 12px;background:var(--surface-2);border-radius:0 6px 6px 0}
+.dbody table{margin:6px 0 10px}
+.dbody thead th{border-bottom:2px solid var(--axis)}
+.dbody td,.dbody th{border-bottom:1px solid var(--grid);padding:5px 8px;text-align:left;vertical-align:top}
+.dbody table.num td:not(:first-child),.dbody table.num th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.dbody dt{font-weight:650;margin-top:12px}
+.dbody dd{margin:2px 0 0 0;color:var(--text-secondary)}
+figure.shot{margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface-2)}
+figure.shot img{display:block;max-width:100%;height:auto}
+figure.flow{margin:8px 0 6px;padding:12px;background:var(--page);border:1px solid var(--border);border-radius:10px;overflow-x:auto}
+figure.flow svg{display:block;width:100%;height:auto;margin:0 auto;min-width:640px;font-family:system-ui,-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif}
+.fn rect,.fn polygon{fill:var(--surface-1);stroke:var(--axis);stroke-width:1.5}
+.fn text{fill:var(--text-primary)}
+.fn-io rect{fill:color-mix(in srgb,var(--s1) 13%,var(--surface-1));stroke:var(--s1)}
+.fn-dec polygon{fill:color-mix(in srgb,var(--s4) 12%,var(--surface-1));stroke:var(--s4)}
+.fn-ok rect{fill:color-mix(in srgb,var(--good) 12%,var(--surface-1));stroke:var(--good)}
+.fn-bad rect{fill:color-mix(in srgb,var(--critical) 12%,var(--surface-1));stroke:var(--critical)}
+.fn-warn rect{fill:color-mix(in srgb,var(--warning) 14%,var(--surface-1));stroke:var(--warning);stroke-dasharray:5 3}
+.fe{fill:none;stroke:var(--text-secondary);stroke-width:1.6}
+.fe-r{stroke-dasharray:6 4}
+.fa{fill:var(--text-secondary)}
+.fl{fill:var(--text-secondary)}
+.fl-bg{fill:var(--page);stroke:var(--border)}
+.sq-t{fill:var(--text-primary)}
+.sq-life{stroke:var(--axis);stroke-width:1.5;stroke-dasharray:4 4}
+.sq-box{fill:color-mix(in srgb,var(--s7) 5%,transparent);stroke:var(--s7);stroke-width:1.2}
+.sq-tag{fill:color-mix(in srgb,var(--s7) 18%,var(--surface-1));stroke:var(--s7)}
+.sq-div{stroke:var(--s7);stroke-dasharray:5 4}
+.sq-note{fill:color-mix(in srgb,var(--s4) 16%,var(--surface-1));stroke:var(--s4)}
+.flegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--text-secondary);margin:4px 0 4px}
+.flegend>span{display:inline-flex;align-items:center;gap:6px}
+.fk{display:inline-block;width:22px;height:13px;border-radius:3px;border:1.5px solid var(--axis);background:var(--surface-1)}
+.fk-io{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 13%,var(--surface-1));border-radius:7px}
+.fk-dec{border:0;background:var(--s4);clip-path:polygon(18% 0,82% 0,100% 50%,82% 100%,18% 100%,0 50%)}
+.fk-ok{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface-1))}
+.fk-bad{border-color:var(--critical);background:color-mix(in srgb,var(--critical) 12%,var(--surface-1))}
+@media (max-width:900px){#docs{grid-template-columns:minmax(0,1fr)}.dtoc{position:static;max-height:none;flex-direction:row;flex-wrap:wrap}.dtoc a.sub2{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Test Summary <span class="zh">良率</span><span class="en">Yield</span> / Bin Trend</h1>
+  <label class="btn" title="選擇一或多個 CSV（test summary 與 bin 設定可一起選） / Open one or more CSV files">📄 <span class="zh">讀取 CSV</span><span class="en">Open CSV</span><input id="fileIn" type="file" accept=".csv,.txt" multiple hidden></label>
+  <button id="dirBtn" title="選擇資料夾後，自動讀取裡面所有 CSV；下次開啟會自動重新連線 / Read every CSV in a folder">📁 <span class="zh">選擇資料夾</span><span class="en">Folder</span></button>
+  <button id="reloadBtn" class="hidden" title="重新讀取資料夾 / Re-read folder">⟳ <span class="zh">重新讀取</span><span class="en">Reload</span></button>
+  <label class="row" style="gap:4px;font-size:12.5px" id="autoWrap" hidden><input type="checkbox" id="autoChk"> <span class="zh">每</span><span class="en">every</span> <input type="number" id="autoSec" value="60" min="10" style="width:56px"> <span class="zh">秒自動更新</span><span class="en">s auto refresh</span></label>
+  <button id="sampleBtn"><span class="zh">範例資料</span><span class="en">Sample data</span></button>
+  <button id="clearBtn"><span class="zh">清除</span><span class="en">Clear</span></button>
+  <span style="flex:1"></span>
+  <span id="srcInfo" class="muted" style="font-size:12px"></span>
+  <button id="docsBtn" title="說明文件與流程圖 / Help &amp; flowcharts">📖 <span class="zh">說明 README</span><span class="en">Help / README</span></button>
+  <button id="langBtn" title="切換語言 / Switch language">🌐 <span class="zh">EN</span><span class="en">中文</span></button>
+  <button id="themeBtn" title="切換深色 / 淺色 · Dark / light">🌙</button>
+</header>
+<div id="tip"></div>
+<div id="zoomBack" hidden></div>
+<div id="busy" class="hidden"></div>
+<main>
+  <section id="dropCard" class="card">
+    <div id="drop">
+      <div style="font-size:16px;margin-bottom:6px"><span class="zh">把 CSV 拖曳到這裡，或用上方「讀取 CSV / 選擇資料夾」</span><span class="en">Drop CSV files here, or use “Open CSV / Folder” above</span></div>
+      <div><span class="zh">可同時放入 test summary CSV 與 bin 設定 CSV（工具會依欄位自動判斷）</span><span class="en">You can drop the test summary, bin config and SBL limit CSVs together (the type is detected from the columns)</span></div>
+      <div style="margin-top:10px"><a href="#" id="dropDocs" style="color:var(--accent)">📖 <span class="zh">第一次使用？看說明與流程圖</span><span class="en">First time? Read the help &amp; flowcharts</span></a></div>
+    </div>
+    <details style="margin-top:10px"><summary><span class="zh">CSV 格式說明</span><span class="en">CSV formats</span></summary>
+      <div class="zh" style="font-size:13px;margin-top:8px">
+        <p><b>Test summary CSV</b>（欄位名稱不分大小寫，順序不拘）：<br>
+        <code>Date, Lot, Product, Stage, TestMode, Tester, Loadboard, Input(可省略), HB1, HB2, … HBn</code><br>
+        · <b>TestMode</b>：<code>P</code> = 第一次測（first pass），<code>O</code> = 重測；多次重測可寫 <code>O1, O2…</code>（以編號分輪）；只寫 <code>O</code> 時，工具依數量自動分輪：每輪 Input = 上一輪的可重測 fail 數，同一輪分多台機台重測的多筆會自動合併（只有日期、沒有時間也可以）。<br>
+        · Bin 欄位可寫作 <code>HB1</code>、<code>HBIN1</code>、<code>BIN1</code>、<code>HB_01</code>。Input 欄位省略時以所有 bin 加總。<br>
+        · 也接受別名：Lot ID / LotNo、Device / Part、Step、Mode / Flow、Tester ID / ATE、Load Board / LB / DIB、Test Date / Start Time。</p>
+        <p><b>Bin 設定 CSV</b>（不可重測 bin，可隨時替換或在下方「Bin 設定」直接修改）：<br>
+        <code>Bin, Description, Retestable, Pass</code> 例如 <code>HB8, Open/Short, N, N</code>。<br>
+        · Retestable = N 表示不可重測（如 HB8、HB9、HB11）；Pass = Y 表示良品 bin（預設 HB1）。<br>
+        · 也可只放一欄 <code>Bin</code>，列出的 bin 一律視為不可重測。</p>
+        <p><b>SBL limit CSV</b>（Statistical Bin Limit，超過即 Hold）：<br>
+        <code>Product, Stage, Bin, Basis, Max_Pct, Max_Qty, Min_Pct</code><br>
+        · Product / Stage 填 <code>*</code> 或空白 = 全部適用；同一 bin 有多條時取最精確者（Product+Stage &gt; Product &gt; Stage &gt; *）。<br>
+        · Bin 填 <code>HB5</code> 等；也可填 <code>FIRST_YIELD</code>、<code>FINAL_YIELD</code> 搭配 Min_Pct 當良率下限。<br>
+        · Basis：<code>P</code> = 以 first pass 計（預設），<code>Final</code> = 以重測後的 final bin 計；都以 P Input 為分母。<br>
+        · Max_Pct / Min_Pct 單位為 %（例 <code>1.2</code> = 1.2%）；Max_Qty 為顆數上限，可與 Max_Pct 並用。</p>
+        <p><b>計算方式</b>（以 Product + Stage + Lot 為一批）：<br>
+        · First Yield = P 的良品 ÷ P 的 Input<br>
+        · Final Yield = (P 良品 + 所有重測良品) ÷ P 的 Input<br>
+        · Final bin 分佈 = P 與各次重測中的不可重測 bin + 最後一次重測的可重測 fail bin；數量對不上的部分列為 <code>NR</code>（Not Retested，未重測）。<br>
+        · 重測數量 &gt; 可重測數量時會出現警告（可能重測了不可重測 bin 或資料重複）。</p>
+        <p>更多說明與流程圖：按上方 <b>📖 說明 README</b>。</p>
+      </div>
+      <div class="en" style="font-size:13px;margin-top:8px">
+        <p><b>Test summary CSV</b> (column names are not case-sensitive; any order):<br>
+        <code>Date, Lot, Product, Stage, TestMode, Tester, Loadboard, Input (optional), HB1, HB2, … HBn</code><br>
+        · <b>TestMode</b>: <code>P</code> = first test (first pass), <code>O</code> = retest. Several retests can be written <code>O1, O2…</code> (rounds by number). With plain <code>O</code>, rounds are found from the quantities: each round's Input = the previous round's retestable fails; one round split over several testers is merged (a date without time is fine).<br>
+        · Bin columns can be written <code>HB1</code>, <code>HBIN1</code>, <code>BIN1</code>, <code>HB_01</code>. Without an Input column, the sum of the bins is used.<br>
+        · Aliases are accepted: Lot ID / LotNo, Device / Part, Step, Mode / Flow, Tester ID / ATE, Load Board / LB / DIB, Test Date / Start Time.</p>
+        <p><b>Bin config CSV</b> (non-retestable bins; replace it any time or edit it in “Bin config” below):<br>
+        <code>Bin, Description, Retestable, Pass</code>, e.g. <code>HB8, Open/Short, N, N</code>.<br>
+        · Retestable = N means not retestable (e.g. HB8, HB9, HB11); Pass = Y marks a good bin (default HB1).<br>
+        · A file with only a <code>Bin</code> column means every listed bin is non-retestable.</p>
+        <p><b>SBL limit CSV</b> (Statistical Bin Limit; over the limit = Hold):<br>
+        <code>Product, Stage, Bin, Basis, Max_Pct, Max_Qty, Min_Pct</code><br>
+        · Product / Stage = <code>*</code> or blank applies to all; with several rows for one bin, the most specific wins (Product+Stage &gt; Product &gt; Stage &gt; *).<br>
+        · Bin = <code>HB5</code> etc., or <code>FIRST_YIELD</code> / <code>FINAL_YIELD</code> with Min_Pct as a yield lower limit.<br>
+        · Basis: <code>P</code> = first-pass count (default), <code>Final</code> = final bins after retest; both divided by P Input.<br>
+        · Max_Pct / Min_Pct are in % (<code>1.2</code> = 1.2%); Max_Qty is a piece limit and can be combined with Max_Pct.</p>
+        <p><b>Calculation</b> (one lot = Product + Stage + Lot):<br>
+        · First Yield = P good ÷ P Input<br>
+        · Final Yield = (P good + all retest good) ÷ P Input<br>
+        · Final bins = non-retestable bins of P and every retest + retestable fail bins of the last retest; any remainder is <code>NR</code> (not retested).<br>
+        · A warning appears when the retest quantity &gt; the retestable quantity (non-retestable bins retested, or duplicated data).</p>
+        <p>More help and flowcharts: click <b>📖 Help / README</b> above.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="card filters" id="filterCard" data-collapse="filters">
+      <h2><span class="zh">篩選</span><span class="en">Filters</span> <span id="fSummary" class="fsum"></span></h2>
+      <div class="ftools">
+        <input type="search" id="fFind" placeholder="🔍 找篩選：名稱或值（例 tester、機台、T03、hold、date）" data-en-placeholder="🔍 Find filter: name or value (e.g. tester, T03, hold, date)">
+        <span class="seg fpos" role="group" aria-label="Filter position">
+          <button data-pos="top" title="篩選放在上方" data-en-title="Filters on top">⬒ <span class="zh">上</span><span class="en">Top</span></button><button data-pos="left" title="篩選放在左側" data-en-title="Filters on the left">◧ <span class="zh">左</span><span class="en">Left</span></button><button data-pos="right" title="篩選放在右側" data-en-title="Filters on the right">◨ <span class="zh">右</span><span class="en">Right</span></button>
+        </span>
+      </div>
+      <div id="fNoMatch" class="muted hidden" style="font-size:12.5px;margin:4px 0 8px"><span class="zh">找不到符合的篩選</span><span class="en">No matching filter</span></div>
+      <div class="row frow" style="margin-bottom:10px">
+        <label data-find="起日 start date 日期 from"><span class="zh">起日</span><span class="en">From</span><input type="date" id="fFrom"></label>
+        <label data-find="迄日 end date 日期 to"><span class="zh">迄日</span><span class="en">To</span><input type="date" id="fTo"></label>
+        <label data-find="lot 搜尋 search 批號"><span class="zh">Lot 搜尋</span><span class="en">Lot search</span><input type="search" id="fLot" placeholder="LA026, LX027…（逗號分隔）" data-en-placeholder="LA026, LX027… (comma-separated)" style="width:210px"></label>
+        <label data-find="trend 單位 unit group 每日 每週 每月 每季 每年 day week month quarter year 日 週 月 季 年"><span class="zh">Trend 單位（全部）</span><span class="en">Trend unit (all)</span><select id="fGroup">
+          <option value="lot" data-en="Per lot">每 Lot</option><option value="day" data-en="Day">每日</option><option value="week" data-en="Week">每週</option><option value="month" data-en="Month">每月</option><option value="quarter" data-en="Quarter">每季</option><option value="year" data-en="Year">每年</option>
+        </select></label>
+        <label data-find="bin 基準 basis first pass final 重測"><span class="zh">Bin 基準</span><span class="en">Bin basis</span><select id="fBasis">
+          <option value="P" data-en="First pass (P)">First pass（P）</option><option value="F" data-en="Final (after retest)">Final（含重測）</option>
+        </select></label>
+        <span class="fspacer"></span>
+        <span class="fbtns">
+          <button id="fClearAll" title="清除所有篩選條件" data-en-title="Clear every filter">✕ <span class="zh">清除全部篩選</span><span class="en">Clear all filters</span></button>
+          <button id="fExpandAll" title="展開 / 收合所有篩選群組" data-en-title="Open / close every filter group">▾ <span class="zh">展開 / 收合群組</span><span class="en">Open / close groups</span></button>
+          <button id="expLot"><span class="zh">匯出 Lot 摘要 CSV</span><span class="en">Export lot summary CSV</span></button>
+        </span>
+      </div>
+      <div class="fgrid" id="fGroups"></div>
+      <div class="muted fhelp" style="font-size:12px;margin-top:6px"><span class="zh">勾選 = 包含；「只選」= 只勾這一項。Tester / Loadboard：lot 的 P 測試機台有任一符合即列入。Bin 篩選只影響 bin 相關圖表（Bin Trend、Pareto、熱圖、Top fail bins）。點任何區塊標題可收合。</span><span class="en">Ticked = included; “only” keeps just that item. Tester / Loadboard: a lot is included if any of its P testers matches. The Bin filter only affects bin charts (Bin trend, Pareto, heatmap, top fail bins). Click any section title to collapse it.</span></div>
+    </div>
+
+    <div id="mainCol">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card" id="sblCard">
+      <h2 data-collapse-key="SBL"><span class="zh">SBL 判定 / Hold Lots</span><span class="en">SBL check / Hold lots</span></h2>
+      <p class="sub"><span class="zh">SBL 來源：</span><span class="en">SBL source: </span><span id="sblSrc"></span><span class="zh">。任何一項超過 limit 即判定 Hold；Basis = Final 的項目若該 lot 尚未重測，標示「待重測」。</span><span class="en">. Any item over its limit = Hold. If a Basis = Final item fails and the lot is not retested yet, it shows “wait for retest”.</span></p>
+      <div class="row" style="margin-bottom:8px">
+        <label class="btn"><span class="zh">匯入 SBL Limit CSV</span><span class="en">Import SBL limit CSV</span><input id="sblIn" type="file" accept=".csv,.txt" hidden></label>
+        <button id="sblExp"><span class="zh">匯出 Hold 清單 CSV</span><span class="en">Export hold list CSV</span></button>
+        <button id="sblClear"><span class="zh">清除 SBL</span><span class="en">Clear SBL</span></button>
+        <label class="row" style="gap:4px;font-size:12.5px"><input type="checkbox" id="sblOnlyHold" checked> <span class="zh">只顯示 Hold lot</span><span class="en">Hold lots only</span></label>
+      </div>
+      <div id="sblBody">
+        <div class="grid2">
+          <div><div class="sub"><span class="zh">違規 lot 數（依項目）</span><span class="en">Lots breaking each limit</span></div><div class="chart" id="cSbl"></div></div>
+          <div><div class="sub"><span class="zh">目前 limit（違規數為目前篩選範圍）</span><span class="en">Active limits (counts are for the current filters)</span></div><div class="tablewrap" id="sblRules" style="max-height:320px"></div></div>
+        </div>
+        <div class="tablewrap" id="sblTable" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card warnwrap hidden" id="warnCard">
+      <h2><span class="zh">資料檢查</span><span class="en">Data check</span></h2>
+      <div class="warnbox" id="warnBox"></div>
+    </div>
+
+    <div class="card">
+      <h2>Yield Trend</h2>
+      <p class="sub" id="yieldSub"></p>
+      <div class="ctools"><span class="lab"><span class="zh">時間單位</span><span class="en">Time unit</span><span class="seg cseg" data-c="y" role="group" aria-label="time unit"><button data-u="lot"><span class="zh">Lot</span><span class="en">Lot</span></button><button data-u="day"><span class="zh">日</span><span class="en">Day</span></button><button data-u="week"><span class="zh">週</span><span class="en">Week</span></button><button data-u="month"><span class="zh">月</span><span class="en">Month</span></button><button data-u="quarter"><span class="zh">季</span><span class="en">Qtr</span></button><button data-u="year"><span class="zh">年</span><span class="en">Year</span></button></span></span><span class="lab"><span class="zh">圖表</span><span class="en">Chart</span><span class="seg cseg" data-c="y" role="group" aria-label="chart type"><button data-t="line"><span class="zh">折線</span><span class="en">Line</span></button><button data-t="loss"><span class="zh">損失長條</span><span class="en">Loss bars</span></button><button data-t="box"><span class="zh">箱形圖</span><span class="en">Box plot</span></button></span></span></div>
+      <div class="chart" id="cYield"></div>
+    </div>
+
+    <div class="card">
+      <h2>Bin Trend</h2>
+      <p class="sub" id="binTrendSub"></p>
+      <div class="ctools"><span class="lab"><span class="zh">時間單位</span><span class="en">Time unit</span><span class="seg cseg" data-c="b" role="group" aria-label="time unit"><button data-u="lot"><span class="zh">Lot</span><span class="en">Lot</span></button><button data-u="day"><span class="zh">日</span><span class="en">Day</span></button><button data-u="week"><span class="zh">週</span><span class="en">Week</span></button><button data-u="month"><span class="zh">月</span><span class="en">Month</span></button><button data-u="quarter"><span class="zh">季</span><span class="en">Qtr</span></button><button data-u="year"><span class="zh">年</span><span class="en">Year</span></button></span></span><span class="lab"><span class="zh">圖表</span><span class="en">Chart</span><span class="seg cseg" data-c="b" role="group" aria-label="chart type"><button data-t="line"><span class="zh">折線</span><span class="en">Line</span></button><button data-t="stack"><span class="zh">堆疊長條</span><span class="en">Stacked bars</span></button><button data-t="group"><span class="zh">分組長條</span><span class="en">Grouped bars</span></button></span></span></div>
+      <div class="bins-pick" id="binPick"></div>
+      <div class="chart" id="cBin" style="margin-top:6px"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Fail Bin Pareto</h2>
+        <p class="sub" id="paretoSub"></p>
+        <div class="chart" id="cPareto"></div>
+      </div>
+      <div class="card">
+        <h2><span class="zh">Bin 狀態熱圖</span><span class="en">Bin heatmap</span></h2>
+        <p class="sub"><span class="zh">每格 = 該 bin 佔 P Input 的 %；顏色依各 bin 欄自身最大值縮放，深色 = 該 bin 在此期間偏高；紅框 ▲ = 超過 SBL limit；列依篩選區的「Trend 單位」分組</span><span class="en">Each cell = the bin as % of P Input. Colour is scaled per bin column: darker = higher for that bin. Red border ▲ = over the SBL limit. Rows follow the filter panel’s “Trend unit”</span></p>
+        <div class="tablewrap" id="heat" style="max-height:420px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tester / Loadboard Performance</h2>
+      <p class="sub"><span class="zh">First Yield 以 P 測試的機台計；Recovery = 重測良品 ÷ 重測 Input（以重測機台計）；Final Yield 依該 lot 在各機台的 P Input 比例分攤。虛線 = 全部平均。</span><span class="en">First Yield is counted on the tester that ran P. Recovery = retest good ÷ retest Input (on the retest tester). Final Yield is shared by each tester’s share of the lot’s P Input. Dashed line = overall average.</span></p>
+      <div class="tabs"><button data-dim="tester" class="on">Tester</button><button data-dim="lb">Loadboard</button><button data-dim="combo">Tester × Loadboard</button></div>
+      <div class="legend" id="perfLegend"></div>
+      <div class="chart" id="cPerf"></div>
+      <div class="tablewrap" id="perfTable" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-collapse-key="Matrix">Tester × Loadboard First Yield <span class="zh">矩陣</span><span class="en">matrix</span></h2>
+      <p class="sub"><span class="zh">顏色越深 = 良率損失越大（100% − First Yield，依最低～最高縮放）；空白 = 無此組合</span><span class="en">Darker = more yield loss (100% − First Yield, scaled from lowest to highest). Blank = combination not used</span></p>
+      <div class="tablewrap" id="matrix"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-collapse-key="Lot"><span class="zh">Lot 明細</span><span class="en">Lot details</span></h2>
+      <p class="sub"><span class="zh">點欄位標題排序</span><span class="en">Click a column title to sort</span></p>
+      <div class="tablewrap" id="lotTable"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-collapse-key="BinCfg"><span class="zh">Bin 設定（不可重測 bin / 良品 bin）</span><span class="en">Bin config (non-retestable bins / good bins)</span></h2>
+      <p class="sub"><span class="zh">來源：</span><span class="en">Source: </span><span id="cfgSrc"></span><span class="zh">。修改後立即重算並記在此瀏覽器；也可匯入另一個 bin 設定 CSV 取代。</span><span class="en">. Changes are recalculated at once and saved in this browser; you can also import another bin config CSV.</span></p>
+      <div class="row" style="margin-bottom:8px">
+        <label class="btn"><span class="zh">匯入 Bin 設定 CSV</span><span class="en">Import bin config CSV</span><input id="cfgIn" type="file" accept=".csv,.txt" hidden></label>
+        <button id="cfgExp"><span class="zh">匯出 Bin 設定 CSV</span><span class="en">Export bin config CSV</span></button>
+        <button id="cfgReset"><span class="zh">重設為預設（HB1 良品；HB8/9/11 不可重測）</span><span class="en">Reset to default (HB1 good; HB8/9/11 non-retestable)</span></button>
+      </div>
+      <div class="tablewrap" id="cfgTable" style="max-height:360px"></div>
+    </div>
+    </div><!-- /mainCol -->
+  </section>
+  <section id="docs">
+    <nav class="dtoc" aria-label="README">
+      <div class="dtoc-h"><span class="zh">目錄</span><span class="en">Contents</span></div>
+      <a href="#d1"><span class="zh">1. 快速開始</span><span class="en">1. Quick start</span></a>
+      <a href="#d2"><span class="zh">2. 檔案</span><span class="en">2. Files</span></a>
+      <a href="#d3"><span class="zh">3. CSV 格式</span><span class="en">3. CSV formats</span></a>
+      <a href="#d3-1" class="sub2"><span class="zh">3.1 Test summary</span><span class="en">3.1 Test summary</span></a>
+      <a href="#d3-2" class="sub2"><span class="zh">3.2 Bin 設定</span><span class="en">3.2 Bin config</span></a>
+      <a href="#d3-3" class="sub2"><span class="zh">3.3 SBL limit</span><span class="en">3.3 SBL limit</span></a>
+      <a href="#d4"><span class="zh">4. 運作方式（流程圖）</span><span class="en">4. How it works (flowcharts)</span></a>
+      <a href="#d4-1" class="sub2"><span class="zh">4.1 整體資料流程</span><span class="en">4.1 Overall data flow</span></a>
+      <a href="#d4-2" class="sub2"><span class="zh">4.2 單一 lot 良率計算</span><span class="en">4.2 Yield for one lot</span></a>
+      <a href="#d4-3" class="sub2"><span class="zh">4.3 重測分輪</span><span class="en">4.3 Retest rounds</span></a>
+      <a href="#d4-4" class="sub2"><span class="zh">4.4 SBL HOLD 判定</span><span class="en">4.4 SBL HOLD decision</span></a>
+      <a href="#d4-5" class="sub2"><span class="zh">4.5 資料夾自動更新</span><span class="en">4.5 Folder auto-refresh</span></a>
+      <a href="#d5"><span class="zh">5. 畫面說明</span><span class="en">5. Screens</span></a>
+      <a href="#d6"><span class="zh">6. 大量資料</span><span class="en">6. Big data</span></a>
+      <a href="#d7"><span class="zh">7. 常見問題</span><span class="en">7. FAQ</span></a>
+    </nav>
+
+    <article class="dbody">
+      <div class="card">
+        <h2 class="dtitle">Test Summary Yield / Bin Trend / SBL <span class="zh">工具說明</span><span class="en">Tool — README</span></h2>
+        <p class="zh">一個 HTML 檔即可讀取半導體 <b>test summary CSV</b>，自動算出：</p>
+        <p class="en">A single HTML file that reads semiconductor <b>test summary CSV</b> files and automatically shows:</p>
+        <ul class="zh">
+          <li>每個 lot 的 <b>First Yield</b> 與 <b>Final Yield</b>（first pass <code>P</code> + 重測 <code>O</code>）</li>
+          <li><b>Bin trend</b>（每 lot / 日 / 週 / 月 / 季 / 年）、Pareto 與熱圖</li>
+          <li><b>Tester / Loadboard performance</b> 與 Tester × Loadboard 矩陣</li>
+          <li><b>SBL（Statistical Bin Limit）判定</b>：哪些 lot 要 <b>HOLD</b>、是哪個 bin 超限</li>
+        </ul>
+        <ul class="en">
+          <li><b>First Yield</b> and <b>Final Yield</b> for every lot (first pass <code>P</code> + retests <code>O</code>)</li>
+          <li><b>Bin trends</b> (per lot / day / week / month / quarter / year), Pareto and heatmap</li>
+          <li><b>Tester / Loadboard performance</b>, and a Tester × Loadboard matrix</li>
+          <li><b>SBL (Statistical Bin Limit) check</b>: which lots are on <b>HOLD</b> and which bin broke the limit</li>
+        </ul>
+        <p class="zh">完全離線在瀏覽器執行（免安裝、免伺服器、免網路）。本說明頁與流程圖也內建在這個檔案裡。上方 <b>🌐</b> 可切換整個工具的中文 / English，<b>🌙 / ☀️</b> 切換深色 / 淺色；每張圖右上角的 <b>⛶</b> 一按即可放大。</p>
+        <p class="en">It runs fully offline in the browser (no install, no server, no internet). This help page and its flowcharts are built into the same file. <b>🌐</b> switches the whole tool between Chinese and English, <b>🌙 / ☀️</b> switches dark / light mode, and the <b>⛶</b> button on every chart zooms it in with one click.</p>
+        <figure class="shot"><img src="docs/images/00_start.png" alt="Start page" width="1300" height="900" loading="lazy"></figure>
+      </div>
+
+      <div class="card" id="d1">
+        <h2><span class="zh">1. 快速開始</span><span class="en">1. Quick start</span></h2>
+        <ol class="zh">
+          <li>用 <b>Chrome 或 Edge</b> 開啟 <code>test_summary_trend.html</code>。</li>
+          <li>載入資料，任選一種：
+            <ul>
+              <li><b>📄 讀取 CSV</b>：選一或多個 CSV。</li>
+              <li><b>📁 選擇資料夾</b>：選資料夾，讀取裡面所有 CSV；下次開啟會自動重新連線。勾選 <b>每 N 秒自動更新</b> 可在檔案變動時自動重讀。</li>
+              <li>把 CSV 拖曳到頁面上。</li>
+            </ul></li>
+          <li>Test summary、bin 設定、SBL limit 可以<b>一起</b>載入，工具依欄位自動判斷檔案類型。</li>
+          <li>按 <b>範例資料</b> 可看示範。</li>
+        </ol>
+        <ol class="en">
+          <li>Open <code>test_summary_trend.html</code> in <b>Chrome or Edge</b>.</li>
+          <li>Load data, choosing one of these ways:
+            <ul>
+              <li><b>📄 Open CSV</b>: pick one or more CSV files.</li>
+              <li><b>📁 Folder</b>: pick a folder; every CSV in it is read. Next time you open the page it reconnects automatically. Tick <b>auto refresh every N s</b> to re-read the folder when files change.</li>
+              <li>Drag &amp; drop CSV files onto the page.</li>
+            </ul></li>
+          <li>You can load the test summary, bin config and SBL limit files <b>together</b>. The tool detects each file's type from its columns.</li>
+          <li>Click <b>Sample data</b> to see a demo.</li>
+        </ol>
+        <p class="note zh">Bin 設定與 SBL limit 會記在瀏覽器裡，直到你替換或清除。</p>
+        <p class="note en">Bin config and SBL limits are remembered in the browser until you replace or clear them.</p>
+      </div>
+
+      <div class="card" id="d2">
+        <h2><span class="zh">2. 檔案</span><span class="en">2. Files</span></h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th><span class="zh">檔案</span><span class="en">File</span></th><th><span class="zh">用途</span><span class="en">Purpose</span></th></tr></thead>
+          <tbody>
+            <tr><td><code>test_summary_trend.html</code></td><td><span class="zh">工具本體（含本說明與流程圖，全部在這一個檔案）</span><span class="en">The tool, including this help page and the flowcharts — all in one file</span></td></tr>
+            <tr><td><code>sample_test_summary.csv</code></td><td><span class="zh">範例 test summary：150 lots，P + O，含多次重測</span><span class="en">Sample test summary: 150 lots, P + O, multiple retests</span></td></tr>
+            <tr><td><code>sample_bin_config.csv</code></td><td><span class="zh">範例 bin 設定：HB1 良品；HB8 / HB9 / HB11 不可重測</span><span class="en">Sample bin config: HB1 = pass; HB8 / HB9 / HB11 not retestable</span></td></tr>
+            <tr><td><code>sample_sbl_limit.csv</code></td><td><span class="zh">範例 SBL limit</span><span class="en">Sample SBL limits</span></td></tr>
+            <tr><td><code>README.md</code></td><td><span class="zh">同內容的 Markdown 版（GitHub / VS Code 用）</span><span class="en">The same content as Markdown (for GitHub / VS Code)</span></td></tr>
+            <tr><td><code>docs/images/</code></td><td><span class="zh">本說明使用的截圖</span><span class="en">Screenshots used in this help page</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="card" id="d3">
+        <h2><span class="zh">3. CSV 格式</span><span class="en">3. CSV formats</span></h2>
+        <p class="zh">欄位名稱<b>不分大小寫</b>、順序不拘；檔案可為 UTF-8 或 Big5（Excel）。</p>
+        <p class="en">Column names are <b>not case-sensitive</b>, the column order doesn't matter, and the file can be UTF-8 or Big5 (Excel).</p>
+
+        <h3 id="d3-1">3.1 Test summary CSV</h3>
+<pre>Date,Lot,Product,Stage,TestMode,Tester,Loadboard,Input,HB1,HB2,HB3,...,HBn
+2026/09/01 02:00,LA02601,ABC123,FT1,P,T02,LB-C1,3864,3747,16,13,...
+2026/09/01 05:00,LA02601,ABC123,FT1,O,T02,LB-C1,96,56,5,3,...</pre>
+        <div class="tablewrap"><table>
+          <thead><tr><th><span class="zh">欄位</span><span class="en">Column</span></th><th><span class="zh">意義</span><span class="en">Meaning</span></th><th><span class="zh">可接受名稱</span><span class="en">Accepted names</span></th></tr></thead>
+          <tbody>
+            <tr><td>Date</td><td><span class="zh">測試日期（時間可省略）</span><span class="en">Test date (time optional)</span></td><td><code>Date</code>, <code>Test Date</code>, <code>Start Time</code>, <code><span class="zh">日期</span><span class="en">(Chinese name)</span></code> …</td></tr>
+            <tr><td>Lot</td><td>Lot ID</td><td><code>Lot</code>, <code>Lot ID</code>, <code>LotNo</code> …</td></tr>
+            <tr><td>Product</td><td><span class="zh">產品 / device</span><span class="en">Product / device</span></td><td><code>Product</code>, <code>Device</code>, <code>Part</code> …</td></tr>
+            <tr><td>Stage</td><td><span class="zh">測試站別</span><span class="en">Test stage</span></td><td><code>Stage</code>, <code>Step</code> …</td></tr>
+            <tr><td>TestMode</td><td><span class="zh"><code>P</code> = 第一次測，<code>O</code> = 重測（可寫 <code>O1</code>、<code>O2</code> …）</span><span class="en"><code>P</code> = first test, <code>O</code> = retest (<code>O1</code>, <code>O2</code> … allowed)</span></td><td><code>TestMode</code>, <code>Mode</code>, <code>Flow</code></td></tr>
+            <tr><td>Tester</td><td>Tester ID</td><td><code>Tester</code>, <code>ATE</code> …</td></tr>
+            <tr><td>Loadboard</td><td>Loadboard ID</td><td><code>Loadboard</code>, <code>LB</code>, <code>DIB</code> …</td></tr>
+            <tr><td>Input</td><td><span class="zh">可省略；省略時以所有 bin 加總</span><span class="en">Optional; if missing, the sum of the bins is used</span></td><td><code>Input</code>, <code>Qty</code>, <code>Total</code></td></tr>
+            <tr><td>HB<i>n</i></td><td><span class="zh">Hard bin 數量</span><span class="en">Hard-bin counts</span></td><td><code>HB1</code>, <code>HBIN1</code>, <code>BIN1</code>, <code>HB_01</code></td></tr>
+          </tbody>
+        </table></div>
+        <p class="zh">支援的日期格式：<code>2026/09/01</code>、<code>2026-09-01 14:30</code>、<code>20260901</code>、<code>09/01/2026 2:30 PM</code>、<code>2026/9/1 下午 02:30</code>，以及 Excel 日期序號。</p>
+        <p class="en">Supported date formats: <code>2026/09/01</code>, <code>2026-09-01 14:30</code>, <code>20260901</code>, <code>09/01/2026 2:30 PM</code>, Chinese AM/PM markers, and Excel serial numbers.</p>
+
+        <h3 id="d3-2"><span class="zh">3.2 Bin 設定 CSV（良品 bin / 不可重測 bin）</span><span class="en">3.2 Bin config CSV (good bins / non-retestable bins)</span></h3>
+<pre>Bin,Description,Retestable,Pass
+HB1,Pass,Y,Y
+HB8,Open/Short,N,N
+HB9,Continuity,N,N
+HB11,Burn/Damage,N,N</pre>
+        <ul class="zh">
+          <li><code>Retestable = N</code> 表示<b>不可重測</b>：落在此 bin 的顆數直接算 final fail，不會進重測。</li>
+          <li><code>Pass = Y</code> 表示良品 bin（預設 HB1）。</li>
+          <li>只有一欄 <code>Bin</code> 的檔案 = 列出的 bin 全部不可重測。</li>
+          <li>也可以直接在頁面下方的 <b>Bin 設定</b> 修改。</li>
+        </ul>
+        <ul class="en">
+          <li><code>Retestable = N</code> means the bin is <b>not retestable</b>. Units in it are a final fail and are never retested.</li>
+          <li><code>Pass = Y</code> marks a good bin (default: HB1).</li>
+          <li>A file with only a <code>Bin</code> column means "every listed bin is non-retestable".</li>
+          <li>You can also edit these settings directly in the page (<b>Bin config</b> section at the bottom).</li>
+        </ul>
+
+        <h3 id="d3-3">3.3 SBL limit CSV</h3>
+<pre>Product,Stage,Bin,Basis,Max_Pct,Max_Qty,Min_Pct,Remark
+*,*,HB5,P,1.40,,,Scan
+*,*,HB8,Final,0.50,,,Open/Short
+*,*,HB11,Final,0.30,8,,limit in % and pcs
+XYZ789,*,HB4,P,1.10,,,stricter for XYZ789
+*,*,FIRST_YIELD,,,,94.5,
+ABC123,FT2,FINAL_YIELD,,,,97.0,</pre>
+        <div class="tablewrap"><table>
+          <thead><tr><th><span class="zh">欄位</span><span class="en">Column</span></th><th><span class="zh">意義</span><span class="en">Meaning</span></th></tr></thead>
+          <tbody>
+            <tr><td>Product / Stage</td><td><span class="zh"><code>*</code> 或空白 = 全部適用</span><span class="en"><code>*</code> or blank = applies to all</span></td></tr>
+            <tr><td>Bin</td><td><span class="zh"><code>HB5</code> 等，或 <code>FIRST_YIELD</code> / <code>FINAL_YIELD</code></span><span class="en"><code>HB5</code> etc., or <code>FIRST_YIELD</code> / <code>FINAL_YIELD</code></span></td></tr>
+            <tr><td>Basis</td><td><span class="zh"><code>P</code> = 以 first pass 數量計（預設）；<code>Final</code> = 以重測後數量計</span><span class="en"><code>P</code> = first-pass count (default); <code>Final</code> = count after retests</span></td></tr>
+            <tr><td>Max_Pct</td><td><span class="zh">上限，佔 P Input 的 %（<code>1.4</code> = 1.4%）</span><span class="en">Upper limit in % of P Input (<code>1.4</code> = 1.4%)</span></td></tr>
+            <tr><td>Max_Qty</td><td><span class="zh">顆數上限（可與 Max_Pct 並用）</span><span class="en">Upper limit in pieces (can be used together with Max_Pct)</span></td></tr>
+            <tr><td>Min_Pct</td><td><span class="zh">下限，用於良率項目（%）</span><span class="en">Lower limit, for yield items (%)</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="zh">同一 lot、同一 bin 有多條規則符合時，<b>最精確的規則優先</b>：Product+Stage › Product › Stage › <code>*</code>。</p>
+        <p class="en">If several rows match the same lot and bin, the <b>most specific row wins</b>: Product+Stage › Product › Stage › <code>*</code>.</p>
+      </div>
+
+      <div class="card" id="d4">
+        <h2><span class="zh">4. 運作方式（流程圖）</span><span class="en">4. How it works (flowcharts)</span></h2>
+        <p class="sub"><span class="zh">流程圖直接畫在本頁（不需網路），會跟著深色 / 淺色主題與語言切換。</span><span class="en">The diagrams are drawn inside this page (no internet needed) and follow the dark / light theme and the language setting.</span></p>
+        <div class="flegend">
+          <span><i class="fk fk-io"></i><span class="zh">輸入 / 資料</span><span class="en">Input / data</span></span>
+          <span><i class="fk"></i><span class="zh">處理步驟</span><span class="en">Step</span></span>
+          <span><i class="fk fk-dec"></i><span class="zh">判斷</span><span class="en">Decision</span></span>
+          <span><i class="fk fk-ok"></i><span class="zh">✓ 正常結果</span><span class="en">✓ Good result</span></span>
+          <span><i class="fk fk-bad"></i><span class="zh">● HOLD / 警告</span><span class="en">● HOLD / warning</span></span>
+        </div>
+
+        <h3 id="d4-1"><span class="zh">4.1 整體資料流程</span><span class="en">4.1 Overall data flow</span></h3>
+        <figure class="flow" data-flow="data"></figure>
+
+        <h3 id="d4-2"><span class="zh">4.2 單一 lot 的良率計算</span><span class="en">4.2 Yield calculation for one lot</span></h3>
+        <figure class="flow" data-flow="yield"></figure>
+        <p class="zh"><b>計算範例</b>（範例資料中的 lot LA02601）：</p>
+        <p class="en"><b>Worked example</b> (lot LA02601 in the sample):</p>
+        <div class="tablewrap"><table class="num">
+          <thead><tr><th><span class="zh">步驟</span><span class="en">Step</span></th><th>Input</th><th><span class="zh">良品</span><span class="en">Good</span></th><th><span class="zh">可重測 fail</span><span class="en">Retestable fails</span></th><th><span class="zh">不可重測 (HB8/9/11)</span><span class="en">Non-retestable (HB8/9/11)</span></th></tr></thead>
+          <tbody>
+            <tr><td>P</td><td>3,864</td><td>3,747</td><td>96</td><td>21</td></tr>
+            <tr><td><span class="zh">O 第 1 輪</span><span class="en">O round 1</span></td><td>96</td><td>56</td><td>40</td><td>0</td></tr>
+            <tr><td><span class="zh">O 第 2 輪</span><span class="en">O round 2</span></td><td>40</td><td>11</td><td><b>29</b></td><td>0</td></tr>
+            <tr><td><b><span class="zh">結果</span><span class="en">Result</span></b></td><td></td><td><b>3,814</b></td><td></td><td></td></tr>
+          </tbody>
+        </table></div>
+        <ul>
+          <li>First Yield = 3,747 ÷ 3,864 = <b>96.97%</b></li>
+          <li>Final Yield = 3,814 ÷ 3,864 = <b>98.71%</b></li>
+          <li><span class="zh">Final fail = 21（不可重測）+ 29（最後一輪）= 50 → 3,814 + 50 = 3,864 ✓</span><span class="en">Final fails = 21 (non-retestable) + 29 (last round) = 50 → 3,814 + 50 = 3,864 ✓</span></li>
+        </ul>
+
+        <h3 id="d4-3"><span class="zh">4.3 重測（O）資料分輪</span><span class="en">4.3 Splitting retest (O) rows into rounds</span></h3>
+        <p class="zh">規則：<b>每一輪重測的 Input = 上一輪的可重測 fail 數</b>。因此即使 CSV 只有日期（沒有時間）、資料順序亂掉、或同一輪分到兩台機台重測，都能正確分輪。</p>
+        <p class="en">The rule: <b>each retest round's Input = the previous round's retestable fails</b>. Because of that, rounds are found correctly even when the CSV has only a date (no time), when the rows are out of order, or when one round was split across two testers.</p>
+        <figure class="flow" data-flow="rounds"></figure>
+
+        <h3 id="d4-4"><span class="zh">4.4 SBL HOLD 判定</span><span class="en">4.4 SBL HOLD decision</span></h3>
+        <figure class="flow" data-flow="sbl"></figure>
+
+        <h3 id="d4-5"><span class="zh">4.5 資料夾自動更新</span><span class="en">4.5 Folder auto-refresh</span></h3>
+        <figure class="flow" data-flow="seq"></figure>
+      </div>
+
+      <div class="card" id="d5">
+        <h2><span class="zh">5. 畫面說明</span><span class="en">5. Screens</span></h2>
+        <p class="sub"><span class="zh">截圖為工具的中文介面。</span><span class="en">Screenshots show the tool's Chinese interface (switch with 🌐).</span></p>
+
+        <h3 id="d5-1"><span class="zh">5.1 篩選與 KPI</span><span class="en">5.1 Filters and KPI</span></h3>
+        <figure class="shot"><img src="docs/images/01_filters.png" alt="Filters" width="1264" height="559" loading="lazy"></figure>
+        <figure class="shot"><img src="docs/images/02_kpis.png" alt="KPI" width="1264" height="95" loading="lazy"></figure>
+        <p class="zh"><b>多選篩選</b>：每一組都可點標題收合。</p>
+        <p class="en"><b>Multi-select filters.</b> Each group can be collapsed (click its title):</p>
+        <div class="tablewrap"><table>
+          <thead><tr><th><span class="zh">群組</span><span class="en">Group</span></th><th><span class="zh">篩選對象</span><span class="en">Filters</span></th><th><span class="zh">說明</span><span class="en">Notes</span></th></tr></thead>
+          <tbody>
+            <tr><td>Product / Stage</td><td>lots</td><td></td></tr>
+            <tr><td>Tester / Loadboard</td><td>lots</td><td><span class="zh">lot 的 P 測試機台 / loadboard <b>任一</b>被選中就納入</span><span class="en">A lot is included if <b>any</b> of its P testers / loadboards is selected</span></td></tr>
+            <tr><td>Bin</td><td><span class="zh">只影響 bin 圖表</span><span class="en">bin charts only</span></td><td><span class="zh">Bin trend、Pareto、熱圖、Top fail bin；lot 數與良率<b>不變</b></span><span class="en">Bin trend, Pareto, heatmap, Top fail bins. Lot counts and yields are <b>not</b> changed</span></td></tr>
+            <tr><td><span class="zh">SBL 判定</span><span class="en">SBL status</span></td><td>lots</td><td>HOLD / <span class="zh">待重測</span><span class="en">wait for retest</span> / PASS / <span class="zh">無 limit</span><span class="en">no limit</span></td></tr>
+            <tr><td><span class="zh">起日 / 迄日</span><span class="en">From / To date</span></td><td>lots</td><td><span class="zh">以 P 測試日期為準</span><span class="en">Date of the P test</span></td></tr>
+            <tr><td><span class="zh">Lot 搜尋</span><span class="en">Lot search</span></td><td>lots</td><td><span class="zh">lot ID 的一部分；多個用逗號分隔（例 <code>LX027, LA0260</code>）</span><span class="en">Part of a lot ID; several, comma-separated (e.g. <code>LX027, LA0260</code>)</span></td></tr>
+          </tbody>
+        </table></div>
+        <ul class="zh">
+          <li>每組可勾選 / 取消項目；滑過項目出現 <b>只選</b> = 只保留該項；<b>全選 / 清除</b>。超過 8 項的群組有搜尋框。</li>
+          <li>項目旁的數字 = lot 數（Bin 為 P fail 顆數）。</li>
+          <li>生效中的篩選會以標籤顯示在 <b>篩選 Filters</b> 標題旁；點標籤的 <b>✕</b> 移除，或按 <b>✕ 清除全部篩選</b>。</li>
+          <li><b>篩選位置：上 / 左 / 右</b>（篩選區上方 <b>⬒ 上 / ◧ 左 / ◨ 右</b>）。左 / 右時篩選變成側欄，捲動圖表時固定不動；收合側欄會縮成細條，圖表用滿寬度。位置會被記住；視窗窄於 900 px 時固定回到上方。</li>
+          <li><b>找篩選</b>：在 <b>🔍 找篩選</b> 輸入（任何地方按 <code>/</code> 跳到這裡，<code>Esc</code> 清除）。可輸入篩選名稱（中英皆可：<code>tester</code> / <code>機台</code>、<code>loadboard</code> / <code>LB</code>、<code>product</code> / <code>產品</code>、<code>bin</code>、<code>sbl</code> / <code>hold</code>、<code>date</code> / <code>日期</code>、<code>trend</code>…），或篩選值（例 <code>T03</code>、<code>LB-B2</code>、<code>scan</code>），符合的群組會打開並只顯示符合的項目。</li>
+          <li><b>放大 ⛶</b>：每張圖（含說明頁流程圖）右上角的方形按鈕，一按放大；按 ✕、<code>Esc</code> 或點外面關閉。</li><li><b>可收合區塊</b>：點任一區塊標題（▾）收合 / 展開，狀態會被記住。</li>
+          <li><b>Bin 基準</b>：<code>First pass (P)</code> 或 <code>Final</code>（重測後），影響 bin trend、Pareto 與熱圖。</li>
+          <li><b>Trend 單位</b>：Yield trend、Bin trend 與熱圖可依 <b>lot / 日 / 週 / 月 / 季 / 年</b> 分組。週 = ISO 週（週一到週日，例 <code>2026-W05</code>），季 = <code>2026-Q1</code>（1–3 月），年 = <code>2026</code>。每個點為加權良率：該期間所有 lot 的 Σ 良品 ÷ Σ P Input；lot 依 P 測試日期歸入期間。超過 1,000 lots 時自動由每 lot 改成每日。</li>
+        </ul>
+        <ul class="en">
+          <li>In each group: tick / untick items, <b>only</b> (shown on hover) keeps only that item, and <b>all / none</b> select all or none. Groups with more than 8 items have a search box.</li>
+          <li>The number next to each item = lots (for Bin: P fail pieces).</li>
+          <li>Active filters appear as chips next to the <b>Filters</b> title. Click <b>✕</b> on a chip to remove that filter, or <b>✕ clear all filters</b> to remove all.</li>
+          <li><b>Filter position: top, left or right</b> (<b>⬒ / ◧ / ◨</b> at the top of the filter panel). Left / right turns the filters into a sidebar that stays in place while you scroll; collapsing it shrinks it to a narrow strip so the charts use the full width. The position is remembered; below 900 px wide the filters go back to the top.</li>
+          <li><b>Find a filter</b>: type in <b>🔍 find filter</b> (press <code>/</code> anywhere to jump to it, <code>Esc</code> to clear). Type a filter name in English or Chinese (<code>tester</code>, <code>loadboard</code> / <code>LB</code>, <code>product</code>, <code>bin</code>, <code>sbl</code> / <code>hold</code>, <code>date</code>, <code>trend</code> …) or a filter value (e.g. <code>T03</code>, <code>LB-B2</code>, <code>scan</code>); the matching groups open and show only the matching values.</li>
+          <li><b>Zoom ⛶</b>: the square button on every chart (and every help-page flowchart) opens it large with one click; ✕, <code>Esc</code> or a click outside closes it.</li><li><b>Collapsible sections</b>: click any section title (▾) to collapse or expand it. The state is remembered.</li>
+          <li><b>Bin basis</b>: <code>First pass (P)</code> or <code>Final</code> (after retests). It affects the bin trend, Pareto and heatmap.</li>
+          <li><b>Trend unit</b>: groups the Yield trend, Bin trend and heatmap by <b>lot / day / week / month / quarter / year</b>. Week = ISO week (Monday–Sunday, e.g. <code>2026-W05</code>), quarter = <code>2026-Q1</code> (Jan–Mar), year = <code>2026</code>. Each point is a weighted yield: Σ good ÷ Σ P Input of all lots in the period; a lot belongs to the period of its P test date. Above 1,000 lots, per-lot switches to daily automatically.</li>
+        </ul>
+        <figure class="shot"><img src="docs/images/12_filters_left.png" alt="Filters on the left" width="1500" height="950" loading="lazy"></figure>
+        <figure class="shot"><img src="docs/images/13_find_filter.png" alt="Find filter" width="1500" height="950" loading="lazy"></figure>
+
+        <h3 id="d5-2"><span class="zh">5.2 SBL / Hold lots</span><span class="en">5.2 SBL / Hold lots</span></h3>
+        <figure class="shot"><img src="docs/images/03_sbl_hold.png" alt="SBL hold" width="1264" height="1003" loading="lazy"></figure>
+        <ul class="zh"><li><b>左</b>：各 limit 超限的 lot 數。</li><li><b>右</b>：生效中的 limit 與超限 lot 數。</li><li><b>下</b>：Hold 清單與每筆違規。</li><li><b>匯出 Hold 清單 CSV</b> 匯出清單。</li></ul>
+        <ul class="en"><li><b>Left:</b> how many lots broke each limit.</li><li><b>Right:</b> the active limits, with how many lots broke each one.</li><li><b>Below:</b> the hold list with each violation.</li><li><b>Export hold list CSV</b> exports the list.</li></ul>
+
+        <h3 id="d5-3">5.3 Yield trend</h3>
+        <figure class="shot"><img src="docs/images/04_yield_trend.png" alt="Yield trend" width="1264" height="414" loading="lazy"></figure>
+        <ul class="zh"><li><b>時間單位</b>：Lot / 日 / 週 / 月 / 季 / 年，只改這張圖（篩選區的 Trend 單位會一次設定全部）。</li><li><b>圖表</b>：<b>折線</b>（加權 First / Final Yield）、<b>損失長條</b>（整根 = First Yield 損失；下段 = 重測後仍 fail 的 Final 損失，上段 = 重測救回）、<b>箱形圖</b>（每期間各 lot 良率分佈：箱 = Q1–Q3，粗線 = 中位數，鬚 = 1.5×IQR，圈 = 離群 lot；需依時間分組，從每 Lot 選箱形圖會自動改為每週）。</li><li>上方紅色 ▼ = 該點含 HOLD lot。</li><li>虛線 = 良率 limit。</li><li>滑過點可看明細。</li></ul>
+        <ul class="en"><li><b>Time unit</b>: lot / day / week / month / quarter / year, for this chart only (the filter panel’s Trend unit sets all charts at once).</li><li><b>Chart</b>: <b>Line</b> (weighted First / Final Yield), <b>Loss bars</b> (whole bar = First Yield loss; lower part = Final loss still failing, upper part = recovered by retest) or <b>Box plot</b> (spread of lot yields per period: box = Q1–Q3, thick line = median, whiskers = 1.5×IQR, circles = outlier lots; it needs a time unit, so choosing it from per-lot switches to weekly).</li><li>Red ▼ at the top = this point contains a HOLD lot.</li><li>Dashed lines = yield limits.</li><li>Hover a point for details.</li></ul>
+
+        <h3 id="d5-4">5.4 Bin trend</h3>
+        <figure class="shot"><img src="docs/images/05_bin_trend.png" alt="Bin trend" width="1264" height="463" loading="lazy"></figure>
+        <ul class="zh"><li>最多選 8 個 bin，每個 bin 顏色固定。</li><li>可各自選<b>時間單位</b>與<b>圖表</b>：<b>折線</b>、<b>堆疊長條</b>（所選 bin 加總）、<b>分組長條</b>。</li><li>虛線 = SBL limit；畫面中所有 lot 使用同一 limit 時才顯示，可用 Product / Stage 篩選看產品專屬 limit。</li></ul>
+        <ul class="en"><li>Pick up to 8 bins. Each bin keeps its own colour.</li><li>Own <b>time unit</b> and <b>chart</b>: <b>Line</b>, <b>Stacked bars</b> (total of the selected bins) or <b>Grouped bars</b>.</li><li>Dashed lines = SBL limits. They are shown when every lot in the view uses the same limit; filter by Product / Stage to see product-specific limits.</li></ul>
+
+        <h3 id="d5-5"><span class="zh">5.5 Pareto 與熱圖</span><span class="en">5.5 Pareto and heatmap</span></h3>
+        <figure class="shot"><img src="docs/images/06_pareto.png" alt="Pareto" width="625" height="406" loading="lazy"></figure>
+        <figure class="shot"><img src="docs/images/07_heatmap.png" alt="Heatmap" width="625" height="406" loading="lazy"></figure>
+        <p class="zh">熱圖顏色依每個 bin 欄位各自縮放；紅框加 ▲ = 超過 SBL limit。</p>
+        <p class="en">Heatmap colour is scaled per bin column. A red border with ▲ = over the SBL limit.</p>
+
+        <h3 id="d5-6">5.6 Tester / Loadboard performance</h3>
+        <figure class="shot"><img src="docs/images/08_tester_perf.png" alt="Tester performance" width="1264" height="475" loading="lazy"></figure>
+        <ul class="zh">
+          <li><b>First Yield</b> 算在跑 P 的機台；<b>Recovery</b> 算在跑重測的機台。</li>
+          <li>▼ = First Yield 顯著低於平均：超過 2σ（二項分佈）且差距大於 0.2 pp。</li>
+          <li><b>比平均高最多</b> = 該機台高出平均最多的 bin，通常就是主因。</li>
+        </ul>
+        <ul class="en">
+          <li><b>First Yield</b> is counted on the tester that ran P. <b>Recovery</b> is counted on the tester that ran the retest.</li>
+          <li>▼ = First Yield significantly below average: more than 2σ (binomial) and more than 0.2 pp.</li>
+          <li><b>Most above average</b> = the bin that is most above the average on this tester. This is usually the root cause.</li>
+        </ul>
+        <figure class="shot"><img src="docs/images/09_matrix.png" alt="Matrix" width="1264" height="284" loading="lazy"></figure>
+
+        <h3 id="d5-7"><span class="zh">5.7 Lot 明細與 Bin 設定</span><span class="en">5.7 Lot table and bin config</span></h3>
+        <figure class="shot"><img src="docs/images/10_lot_table.png" alt="Lot table" width="1264" height="415" loading="lazy"></figure>
+        <figure class="shot"><img src="docs/images/11_bin_config.png" alt="Bin config" width="1264" height="485" loading="lazy"></figure>
+      </div>
+
+      <div class="card" id="d6">
+        <h2><span class="zh">6. 大量資料</span><span class="en">6. Big data</span></h2>
+        <p class="zh">在本機 Chrome（headless）實測，每列 32 個 bin：</p>
+        <p class="en">Measured in Chrome (headless) on this PC, with 32 bins per row:</p>
+        <div class="tablewrap"><table class="num">
+          <thead><tr><th>Lots</th><th><span class="zh">CSV 列數</span><span class="en">CSV rows</span></th><th><span class="zh">檔案大小</span><span class="en">File size</span></th><th><span class="zh">載入</span><span class="en">Load</span></th><th><span class="zh">變更篩選</span><span class="en">Filter change</span></th><th><span class="zh">瀏覽器記憶體</span><span class="en">Browser memory</span></th></tr></thead>
+          <tbody>
+            <tr><td>10,000</td><td>20 k</td><td>2 MB</td><td>2 s</td><td>1 s</td><td>40 MB</td></tr>
+            <tr><td>50,000</td><td>98 k</td><td>11 MB</td><td>4 s</td><td>1.5 s</td><td>160 MB</td></tr>
+            <tr><td>200,000</td><td>394 k</td><td>46 MB</td><td>13 s</td><td>5 s</td><td>620 MB</td></tr>
+            <tr><td>500,000</td><td>986 k</td><td>114 MB</td><td>44 s</td><td>20 s</td><td>1.6 GB</td></tr>
+          </tbody>
+        </table></div>
+        <ul class="zh">
+          <li>約 <b>200,000 lots / 50 MB</b> 以內使用順暢；100 萬列仍可用，但較慢。</li>
+          <li>表格顯示前 1,000 列（排序以全部資料計算），熱圖顯示最新 400 列；<b>匯出 CSV</b> 一律包含全部資料。</li>
+          <li>歷史資料很大時，建議每個期間一個資料夾（例如每季），或用日期篩選。</li>
+        </ul>
+        <ul class="en">
+          <li><b>Comfortable</b> up to about <b>200,000 lots / 50 MB</b>. It still works at 1M rows, but slowly.</li>
+          <li>Tables show the first 1,000 rows (sorted over all data), and the heatmap shows the latest 400 rows. <b>Export CSV</b> always contains everything.</li>
+          <li>For very large histories, keep one folder per period (e.g. per quarter), or filter by date.</li>
+        </ul>
+      </div>
+
+      <div class="card" id="d7">
+        <h2><span class="zh">7. 常見問題</span><span class="en">7. FAQ</span></h2>
+        <dl class="zh">
+          <dt>同一個 lot 有很多次 O 重測，可以嗎？</dt>
+          <dd>可以，見 <a href="#d4-3">4.3</a>。只有日期、順序亂掉、重測分到多台機台都能處理；Final Yield 一定正確。若無法分輪（只有日期、沒有輪次編號、且有部分重測），只有 final bin 分佈可能略有誤差；寫成 <code>O1</code>、<code>O2</code>… 或加上時間即可避免。</dd>
+          <dt>哪些 bin 算良品？</dt>
+          <dd>預設 HB1。可在 <b>Bin 設定</b> 或 bin 設定 CSV 把其他 bin 標為 Pass。</dd>
+          <dt>Bin <code>NR</code> 是什麼？</dt>
+          <dd>以可重測 bin fail、但沒有被重測的顆數（P fail 減去進入重測的數量）。</dd>
+          <dt>「◐ 待重測」是什麼意思？</dt>
+          <dd>該 lot 只違反 <code>Final</code> 基準的 limit，且尚未重測；重測後結果可能改變，所以不算 HOLD。</dd>
+          <dt>需要網路嗎？</dt>
+          <dd>不需要。<code>test_summary_trend.html</code> 不使用任何外部檔案，本說明的流程圖也是內建繪製。</dd>
+          <dt>用哪個瀏覽器？</dt>
+          <dd>Chrome 或 Edge；讀取資料夾（📁）需要這兩者之一。開檔與拖曳在 Firefox 也可用。</dd>
+        </dl>
+        <dl class="en">
+          <dt>The same lot has many O tests. Is that OK?</dt>
+          <dd>Yes. See <a href="#d4-3">4.3</a>. It works with date-only data, rows out of order, and retests split over several testers. Final Yield is always exact. If rounds can't be told apart (date only, no round numbers, and a partial retest), only the final bin split may be slightly off. Writing <code>O1</code>, <code>O2</code> … or adding a time avoids this.</dd>
+          <dt>Which bins are "good"?</dt>
+          <dd>HB1 by default. Mark other bins as Pass in <b>Bin config</b> or in the bin config CSV.</dd>
+          <dt>What is bin <code>NR</code>?</dt>
+          <dd>Units that failed with a retestable bin but were never retested (P fails minus the units that went into the retest).</dd>
+          <dt>What does "◐ wait for retest" mean?</dt>
+          <dd>The lot only breaks a <code>Final</code>-basis limit and has not been retested yet. A retest may still change the result, so it is not counted as HOLD.</dd>
+          <dt>Do I need internet?</dt>
+          <dd>No. <code>test_summary_trend.html</code> uses no external files; the flowcharts on this page are drawn by the page itself.</dd>
+          <dt>Which browser?</dt>
+          <dd>Chrome or Edge. Folder reading (📁) needs one of them. Opening files and drag &amp; drop also work in Firefox.</dd>
+        </dl>
+      </div>
+    </article>
+  </section>
+</main>
+<footer class="page-updated"><span class="zh">最後更新：</span><span class="en">Last updated: </span><time datetime="2026-11-02">2026-11-02</time></footer>
+
+<script id="gen">
+/* 範例資料產生器（固定亂數種子，結果可重現） */
+function makeSampleCSV(){
+  let seed=20261101; const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  const pois=(lam)=>{ if(lam<=0)return 0; if(lam>30){return Math.max(0,Math.round(lam+Math.sqrt(lam)*(rnd()+rnd()+rnd()-1.5)*2));} let L=Math.exp(-lam),k=0,p=1;do{k++;p*=rnd();}while(p>L);return k-1;};
+  const NB=12, nonRetest=new Set([8,9,11]);
+  const base={2:.004,3:.003,4:.006,5:.005,6:.002,7:.004,8:.002,9:.0015,10:.003,11:.001,12:.001};
+  const products=['ABC123','XYZ789'], stages=['FT1','FT2'];
+  const testers=['T01','T02','T03','T04'], lbs=['LB-A1','LB-A2','LB-B1','LB-B2','LB-C1'];
+  const head=['Date','Lot','Product','Stage','TestMode','Tester','Loadboard','Input'].concat(Array.from({length:NB},(_,i)=>'HB'+(i+1)));
+  const out=[head.join(',')];
+  const start=Date.UTC(2026,8,1);
+  const fmt=(ms)=>{const d=new Date(ms);const p=(n)=>String(n).padStart(2,'0');return `${d.getUTCFullYear()}/${p(d.getUTCMonth()+1)}/${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;};
+  const testRun=(n,tester,lb,dayIdx,retest)=>{
+    const c=new Array(NB+1).fill(0); let fails=0;
+    for(let b=2;b<=NB;b++){
+      let r=base[b];
+      if(tester==='T03'&&b===5) r*=3.2;            // T03 bin5 偏高
+      if(lb==='LB-B2'&&b===7) r*=1+dayIdx/12;      // LB-B2 bin7 隨時間惡化
+      if(dayIdx>40&&b===4) r*=1.8;                 // 後期 bin4 上升
+      if(retest) r = nonRetest.has(b)? r*0.4 : r*18;
+      c[b]=pois(n*r); fails+=c[b];
+    }
+    if(fails>n){ for(let b=2;b<=NB;b++) c[b]=Math.floor(c[b]*n/fails); fails=c.reduce((a,v,i)=>i>1?a+v:a,0); }
+    c[1]=n-fails; return c;
+  };
+  let lotNo=1;
+  for(let d=0;d<61;d++){
+    const nl=1+Math.floor(rnd()*2);
+    for(let k=0;k<nl;k++){
+      const prod=products[rnd()<0.6?0:1];
+      for(const st of stages){
+        if(st==='FT2'&&rnd()<0.4) continue;
+        const lot=`L${prod.slice(0,1)}${String(2600+lotNo).padStart(5,'0')}`;
+        const t=testers[Math.floor(rnd()*testers.length)], lb=lbs[Math.floor(rnd()*lbs.length)];
+        const n=2500+Math.floor(rnd()*2500);
+        const tms=start+d*864e5+(st==='FT2'?12:2+k*4)*36e5;
+        const p=testRun(n,t,lb,d,false);
+        out.push([fmt(tms),lot,prod,st,'P',t,lb,n].concat(p.slice(1)).join(','));
+        let rt=0; for(let b=2;b<=NB;b++) if(!nonRetest.has(b)) rt+=p[b];
+        let round=1, prevTime=tms;
+        while(rt>0&&round<=2){
+          const t2=round===1&&rnd()<0.5?t:testers[Math.floor(rnd()*testers.length)];
+          const lb2=round===1?lb:lbs[Math.floor(rnd()*lbs.length)];
+          prevTime+=3*36e5;
+          const o=testRun(rt,t2,lb2,d,true);
+          out.push([fmt(prevTime),lot,prod,st,'O',t2,lb2,rt].concat(o.slice(1)).join(','));
+          let nrt=0; for(let b=2;b<=NB;b++) if(!nonRetest.has(b)) nrt+=o[b];
+          rt=nrt; round++;
+          if(rnd()<0.5) break;
+        }
+        lotNo++;
+      }
+    }
+  }
+  const cfg=['Bin,Description,Retestable,Pass','HB1,Pass,Y,Y','HB2,Leakage,Y,N','HB3,IDDQ,Y,N','HB4,Function,Y,N','HB5,Scan,Y,N','HB6,AC Timing,Y,N','HB7,DC Param,Y,N',
+    'HB8,Open/Short,N,N','HB9,Continuity,N,N','HB10,Vmin,Y,N','HB11,Burn/Damage,N,N','HB12,Other,Y,N'];
+  const sbl=['Product,Stage,Bin,Basis,Max_Pct,Max_Qty,Min_Pct,Remark',
+    '*,*,HB2,P,1.00,,,',
+    '*,*,HB3,P,0.80,,,',
+    '*,*,HB4,P,1.20,,,Function',
+    '*,*,HB5,P,1.40,,,Scan',
+    '*,*,HB6,P,0.60,,,',
+    '*,*,HB7,P,1.30,,,DC Param',
+    '*,*,HB8,Final,0.50,,,Open/Short (non-retestable)',
+    '*,*,HB9,Final,0.40,,,',
+    '*,*,HB10,P,0.80,,,',
+    '*,*,HB11,Final,0.30,8,,Burn/Damage',
+    '*,*,HB12,P,0.40,,,',
+    'XYZ789,*,HB4,P,1.10,,,stricter for XYZ789',
+    '*,*,FIRST_YIELD,,,,94.5,',
+    '*,*,FINAL_YIELD,,,,96.5,',
+    'ABC123,FT2,FINAL_YIELD,,,,97.0,'];
+  return {summary:out.join('\r\n')+'\r\n', bincfg:cfg.join('\r\n')+'\r\n', sbl:sbl.join('\r\n')+'\r\n'};
+}
+if(typeof module!=='undefined') module.exports={makeSampleCSV};
+</script>
+
+<script>
+'use strict';
+/* ========================= 狀態 ========================= */
+const S={
+  cv:(()=>{ const d={y:{u:'lot',t:'line'},b:{u:'lot',t:'line'}}; try{ const j=JSON.parse(localStorage.getItem('tsbl.ctype')); if(j){ d.y.t=j.y||'line'; d.b.t=j.b||'line'; if(d.y.t==='box') d.y.t='line'; } }catch(e){} return d; })(),
+  rows:[], warnLoad:[], files:[], srcLabel:'',
+  binCfg:new Map(), cfgSrc:'預設', sbl:[], sblSrc:'',
+  dirHandle:null, dirSig:'', autoTimer:null,
+  binSlot:new Map(), perfDim:'tester', sort:{lot:{k:'date',d:1},perf:{k:'name',d:1}},
+  lots:[], lotsF:[], allBins:[]
+};
+const SLOTS=['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+const SEQ=['#cde2fb','#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#1c5cab','#184f95','#104281','#0d366b'];
+const $=(id)=>document.getElementById(id);
+/* 語言：L(中文, English) 依目前語言回傳；T() 產生可隨語言切換的文字（警告訊息等先存起來、顯示時才決定語言） */
+const isEN=()=>document.documentElement.dataset.lang==='en';
+const L=(zh,en)=>isEN()?en:zh;
+class TS{ constructor(zh,en){ this.zh=zh; this.en=en; } toString(){ return isEN()?this.en:this.zh; } }
+const T=(zh,en)=>new TS(zh,en);
+const NOT_RT=T('尚未重測','not retested yet');
+const trSrc=(x)=>isEN()?String(x).replace('瀏覽器記錄','saved in browser').replace('預設','default').replace('（已修改）',' (edited)'):String(x);
+const esc=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cssv=(n)=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pct=(v,d=2)=>v==null||!isFinite(v)?'–':(v*100).toFixed(d)+'%';
+const num=(v)=>v==null?'–':Math.round(v).toLocaleString();
+const binName=(b)=>b==='NR'?'NR':'HB'+b;
+const binSort=(a,b)=>(a==='NR')-(b==='NR')||(+a)-(+b);
+
+/* ========================= CSV 解析 ========================= */
+function decode(buf){
+  const u8=new Uint8Array(buf);
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(u8).replace(/^﻿/,''); }
+  catch(e){ try{ return new TextDecoder('big5').decode(u8);}catch(e2){ return new TextDecoder('utf-8').decode(u8);} }
+}
+/* 大陣列不能用 Math.min(...arr)（超過約 12 萬個會 stack overflow） */
+function minmax(a){ let lo=Infinity,hi=-Infinity; for(const v of a){ if(v<lo) lo=v; if(v>hi) hi=v; } return [lo,hi]; }
+function parseCSV(text){
+  const first=text.split(/\r?\n/,1)[0]||'';
+  const cnt=(ch)=>first.split(ch).length;
+  const delim=[',','\t',';'].sort((a,b)=>cnt(b)-cnt(a))[0];
+  if(text.indexOf('"')<0){   // 快速路徑：沒有引號時直接 split（大檔快很多）
+    const out=[]; let p=0; const L=text.length;
+    while(p<L){ let e=text.indexOf('\n',p); if(e<0) e=L; let line=text.slice(p,e); if(line.endsWith('\r')) line=line.slice(0,-1); p=e+1;
+      if(line.trim()!=='') out.push(line.split(delim)); }
+    return out;
+  }
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===delim){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(x=>x.trim()!==''));
+}
+const norm=(h)=>String(h).toLowerCase().replace(/[\s_\-\.#\/()]/g,'');
+const ALIAS={
+  date:['date','testdate','datetime','time','starttime','endtime','testtime','日期','時間'],
+  lot:['lot','lotid','lotno','lotnumber','lotname','批號'],
+  product:['product','device','part','partno','partname','productname','產品'],
+  stage:['stage','step','teststage','process','站別'],
+  mode:['testmode','mode','flow','testflow','passtype','測試模式'],
+  tester:['tester','testerid','ate','testername','machine','機台'],
+  lb:['loadboard','loadboardid','lb','lbid','dib','board','handlerboard'],
+  input:['input','inputqty','qty','total','totalqty','testqty','in','數量']
+};
+function mapHeader(head){
+  const m={bins:{}}; const n=head.map(norm);
+  for(const [k,al] of Object.entries(ALIAS)){ const i=n.findIndex(h=>al.includes(h)); if(i>=0) m[k]=i; }
+  n.forEach((h,i)=>{ const r=h.match(/^(hb|hbin|hardbin|bin)0*(\d+)$/); if(r) m.bins[String(+r[2])]=i; });
+  return m;
+}
+function parseDate(s){
+  s=String(s||'').trim(); if(!s) return null;
+  if(/^\d{5}(\.\d+)?$/.test(s)){ const v=+s; if(v>20000&&v<80000) return Math.round((v-25569)*864e5/6e4)*6e4; }  // Excel 序號日期
+  // 上午/下午/AM/PM：先取出，再從字串移除
+  const pm=/下午|晚上|\bpm\b/i.test(s), am=/上午|早上|凌晨|\bam\b/i.test(s);
+  s=s.replace(/上午|下午|早上|晚上|凌晨|\b[ap]m\b/ig,' ').replace(/\s+/g,' ').trim();
+  const hr=(h)=>{ h=+(h||0); if(pm&&h<12) h+=12; if(am&&h===12) h=0; return h; };
+  const tm='(?:[ T]+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?';
+  let r=s.match(new RegExp('^(\\d{4})[\\/\\-\\.](\\d{1,2})[\\/\\-\\.](\\d{1,2})'+tm));
+  if(!r) r=s.match(/^(\d{4})(\d{2})(\d{2})(?:[ T_]?(\d{2})(\d{2})(\d{2})?)?/);
+  if(r) return Date.UTC(+r[1],+r[2]-1,+r[3],hr(r[4]),+(r[5]||0),+(r[6]||0));
+  r=s.match(new RegExp('^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})'+tm)); // MM/DD/YYYY
+  if(r) return Date.UTC(+r[3],+r[1]-1,+r[2],hr(r[4]),+(r[5]||0),+(r[6]||0));
+  const t=Date.parse(s); return isNaN(t)?null:t;
+}
+const parseBool=(s)=>{ s=String(s??'').trim().toLowerCase(); if(/^(y|yes|1|true|t|v|是|可|ok|pass|good)$/.test(s)) return true; if(/^(n|no|0|false|f|否|不可|x|fail)$/.test(s)) return false; return null; };
+const binKey=(s)=>{ const r=String(s).trim().match(/(\d+)\s*$/); return r?String(+r[1]):null; };
+
+function classify(table){
+  const head=table[0]||[]; const n=head.map(norm); const m=mapHeader(head);
+  if(Object.keys(m.bins).length>=1 && m.mode!=null) return 'summary';
+  if(isSBLHeader(n)) return 'sbl';
+  if(n.includes('bin')||n.includes('hb')||n.includes('hardbin')||n.includes('binno')) return 'bincfg';
+  if(Object.keys(m.bins).length>=2) return 'summary';
+  return 'unknown';
+}
+function parseBinCfg(table){
+  const n=table[0].map(norm); const cfg=new Map();
+  const iBin=n.findIndex(h=>['bin','hb','hardbin','binno','binnumber'].includes(h));
+  const iDesc=n.findIndex(h=>['description','desc','name','binname','說明','描述'].includes(h));
+  const iRt=n.findIndex(h=>['retestable','retest','canretest','可重測'].includes(h));
+  const iNr=n.findIndex(h=>['noretest','nonretest','nonretestable','notretestable','不可重測'].includes(h));
+  const iPass=n.findIndex(h=>['pass','good','ispass','isgood','良品'].includes(h));
+  const iType=n.findIndex(h=>['type','bintype','category','類別'].includes(h));
+  for(const r of table.slice(1)){
+    const b=binKey(r[iBin]); if(!b) continue;
+    let retest=null, pass=null;
+    if(iRt>=0) retest=parseBool(r[iRt]);
+    if(iNr>=0){ const v=parseBool(r[iNr]); if(v!=null) retest=!v; }
+    if(iPass>=0) pass=parseBool(r[iPass]);
+    if(iType>=0){ const t=String(r[iType]).toLowerCase(); if(/pass|good/.test(t)) pass=true; if(/no.?retest|non.?retest|nr|不可/.test(t)) retest=false; else if(/retest/.test(t)&&retest==null) retest=true; }
+    if(iRt<0&&iNr<0&&iType<0&&iPass<0) retest=false;   // 只有 Bin 欄 → 不可重測清單
+    cfg.set(b,{desc:iDesc>=0?String(r[iDesc]||'').trim():'', retest:retest==null?true:retest, pass:pass==null?false:pass});
+  }
+  if(![...cfg.values()].some(c=>c.pass)){ const c=cfg.get('1')||{desc:'Pass',retest:true}; c.pass=true; cfg.set('1',c); }
+  return cfg;
+}
+function parseSummary(table,src,warn){
+  const head=table[0]; const m=mapHeader(head); const out=[];
+  if(m.mode==null) warn.push(T(`${src}：找不到 TestMode 欄位，全部視為 P（第一次測）`,`${src}: no TestMode column; every row is treated as P (first test)`));
+  if(m.lot==null) warn.push(T(`${src}：找不到 Lot 欄位，O 會歸到前一筆相同 Product/Stage 的 P`,`${src}: no Lot column; each O row goes to the previous P row with the same Product/Stage`));
+  let lastLot={}; let autoLot=0;
+  table.slice(1).forEach((r,ri)=>{
+    const g=(k)=>m[k]!=null?String(r[m[k]]??'').trim():'';
+    const bins={}; let sum=0;
+    for(const [b,i] of Object.entries(m.bins)){ const v=parseFloat(String(r[i]).replace(/,/g,'')); const x=isFinite(v)?v:0; bins[b]=x; sum+=x; }
+    const modeRaw=(g('mode')||'P').toUpperCase();
+    let mode=null, round=0;
+    if(/^P|^FIRST|^FP/.test(modeRaw)) mode='P';
+    else if(/^(O|R|RT|RETEST)/.test(modeRaw)){ mode='O'; const d=modeRaw.match(/(\d+)/); round=d?+d[1]:0; }
+    if(!mode){ warn.push(T(`${src} 第 ${ri+2} 列：無法辨識 TestMode「${modeRaw}」，已略過`,`${src} row ${ri+2}: unknown TestMode "${modeRaw}", skipped`)); return; }
+    const product=g('product')||'(none)', stage=g('stage')||'(none)';
+    const ps=product+'|'+stage;
+    let lot=g('lot');
+    if(!lot){ if(mode==='P'){ lot='#'+(++autoLot); lastLot[ps]=lot; } else lot=lastLot[ps]||'#?'; }
+    let input=sum;
+    if(m.input!=null){ const v=parseFloat(String(r[m.input]).replace(/,/g,'')); if(isFinite(v)&&v>0){ input=v; if(Math.abs(v-sum)>0.5) warn.push(T(`${src} 第 ${ri+2} 列（${lot} ${modeRaw}）：Input ${v} ≠ bin 加總 ${sum}，以 bin 加總計算`,`${src} row ${ri+2} (${lot} ${modeRaw}): Input ${v} ≠ sum of bins ${sum}; the sum of bins is used`)); } }
+    out.push({src,idx:ri,dateRaw:g('date'),t:parseDate(g('date')),lot,product,stage,mode,modeRaw,round,tester:g('tester')||'(none)',lb:g('lb')||'(none)',bins,input:sum});
+  });
+  return out;
+}
+
+/* ========================= Bin 設定 ========================= */
+function defaultCfg(){ const m=new Map(); m.set('1',{desc:'Pass',retest:true,pass:true}); for(const b of ['8','9','11']) m.set(b,{desc:'',retest:false,pass:false}); return m; }
+const cfgOf=(b)=>S.binCfg.get(b)||{desc:'',retest:true,pass:false};
+// isPass / isNR 會被呼叫數千萬次 → 用快取（bin 設定變更時 binTypeCache.clear()）
+const binTypeCache=new Map();
+const binType=(b)=>{ let t=binTypeCache.get(b); if(t===undefined){ const c=cfgOf(b); t=c.pass?1:(!c.retest?2:0); binTypeCache.set(b,t); } return t; };
+const isPass=(b)=>binType(b)===1;
+const isNR=(b)=>binType(b)===2;
+function saveCfg(){ try{ localStorage.setItem('tsbl.bincfg',JSON.stringify({src:S.cfgSrc,cfg:[...S.binCfg]})); }catch(e){} }
+function loadCfg(){ try{ const j=JSON.parse(localStorage.getItem('tsbl.bincfg')); if(j&&j.cfg){ S.binCfg=new Map(j.cfg); S.cfgSrc=j.src||'瀏覽器記錄'; return; } }catch(e){} S.binCfg=defaultCfg(); S.cfgSrc='預設'; }
+
+/* ========================= SBL limit ========================= */
+const SBL_COLS={
+  max:['maxpct','max','maxpercent','maxrate','limit','limitpct','sbl','sbllimit','sblpct','ul','upperlimit','usl','上限'],
+  qty:['maxqty','maxcount','limitqty','qtylimit','sblqty','數量上限'],
+  min:['minpct','min','minyield','yieldlimit','lowerlimit','ll','lsl','syl','下限']
+};
+const SBL_ITEM=['bin','hb','hardbin','binno','item','parameter','項目'];
+function isSBLHeader(n){ return n.some(h=>SBL_ITEM.includes(h))&&n.some(h=>[...SBL_COLS.max,...SBL_COLS.qty,...SBL_COLS.min].includes(h)); }
+function sblItem(s){
+  const n=norm(s);
+  if(/^(final|fnl|fny|ft?y?final)/.test(n)) return 'FNY';
+  if(/yield|^fy$|^fpy$|^py$/.test(n)) return 'FY';
+  return binKey(s);
+}
+const itemName=(it)=>it==='FY'?'First Yield':it==='FNY'?'Final Yield':binName(it);
+function parseSBL(table,src,warn){
+  const n=table[0].map(norm); const col=(al)=>n.findIndex(h=>al.includes(h));
+  const iP=col(ALIAS.product), iS=col(ALIAS.stage), iI=col(SBL_ITEM), iB=col(['basis','base','flow','testmode','mode','基準']);
+  const iMax=col(SBL_COLS.max), iQty=col(SBL_COLS.qty), iMin=col(SBL_COLS.min), iRem=col(['remark','note','comment','description','desc','備註','說明']);
+  const f=(r,i)=>{ if(i<0) return null; const v=parseFloat(String(r[i]??'').replace(/[%,\s]/g,'')); return isFinite(v)?v:null; };
+  const out=[];
+  table.slice(1).forEach((r,ri)=>{
+    const item=sblItem(r[iI]??''); if(!item){ warn.push(T(`${src} 第 ${ri+2} 列：無法辨識 Bin「${r[iI]??''}」，已略過`,`${src} row ${ri+2}: unknown Bin "${r[iI]??''}", skipped`)); return; }
+    const w=(i)=>{ const v=i<0?'':String(r[i]??'').trim(); return v===''||v==='*'||/^all$/i.test(v)?'*':v; };
+    const basisRaw=iB<0?'':String(r[iB]??'').trim();
+    const rule={product:w(iP),stage:w(iS),item,basis:item==='FNY'?'F':item==='FY'?'P':(/^(f|o|r)/i.test(basisRaw)?'F':'P'),
+      max:f(r,iMax),qty:f(r,iQty),min:f(r,iMin),remark:iRem<0?'':String(r[iRem]??'').trim(),row:ri};
+    if(rule.max==null&&rule.qty==null&&rule.min==null){ warn.push(T(`${src} 第 ${ri+2} 列（${itemName(item)}）：沒有 limit 數值，已略過`,`${src} row ${ri+2} (${itemName(item)}): no limit value, skipped`)); return; }
+    if((item==='FY'||item==='FNY')&&rule.min==null&&rule.max!=null){ rule.min=rule.max; rule.max=null; }   // 良率填在 limit 欄 → 視為下限
+    out.push(rule);
+  });
+  return out;
+}
+function saveSBL(){ try{ localStorage.setItem('tsbl.sbl',JSON.stringify({src:S.sblSrc,rules:S.sbl})); }catch(e){} }
+function loadSBL(){ try{ const j=JSON.parse(localStorage.getItem('tsbl.sbl')); if(j&&j.rules){ S.sbl=j.rules; S.sblSrc=j.src||'瀏覽器記錄'; return; } }catch(e){} S.sbl=[]; S.sblSrc=''; }
+/* 對某 product/stage 找每個 item|basis 最精確的 rule */
+const ruleCache=new Map();   // product|stage → rules（S.sbl 變更時清空）
+function rulesFor(product,stage){
+  const ck=product+'\u0000'+stage; if(ruleCache.has(ck)) return ruleCache.get(ck);
+  const res=rulesForRaw(product,stage); ruleCache.set(ck,res); return res;
+}
+function rulesForRaw(product,stage){
+  const best=new Map();
+  for(const r of S.sbl){
+    if(r.product!=='*'&&r.product!==product) continue;
+    if(r.stage!=='*'&&r.stage!==stage) continue;
+    const sp=(r.product!=='*'?2:0)+(r.stage!=='*'?1:0), k=r.item+'|'+r.basis, cur=best.get(k);
+    if(!cur||sp>=cur.sp) best.set(k,{sp,r});
+  }
+  return [...best.values()].map(x=>x.r);
+}
+function evalSBL(l){
+  const rules=rulesFor(l.product,l.stage); const viol=[];
+  const pending=l.warn.includes(NOT_RT);
+  for(const r of rules){
+    if(r.item==='FY'||r.item==='FNY'){
+      const y=r.item==='FY'?l.fy:l.fny;
+      if(r.min!=null&&y!=null&&y<r.min/100-1e-12) viol.push({rule:r,item:r.item,basis:r.basis,pend:r.item==='FNY'&&pending,text:`${itemName(r.item)} ${pct(y)} < ${r.min}%`});
+      continue;
+    }
+    const q=(r.basis==='F'?l.fBins:l.pBins)[r.item]||0, p=l.pIn?q/l.pIn:0, tag=r.basis==='F'?' (Final)':'';
+    const parts=[];
+    if(r.max!=null&&p>r.max/100+1e-12) parts.push(`${pct(p)} > ${r.max}%`);
+    if(r.qty!=null&&q>r.qty) parts.push(`${num(q)} pcs > ${r.qty}`);
+    if(parts.length) viol.push({rule:r,item:r.item,basis:r.basis,pend:r.basis==='F'&&pending,text:T(`${binName(r.item)}${tag} ${parts.join('、')}`,`${binName(r.item)}${tag} ${parts.join(', ')}`)});
+  }
+  const hold=viol.length>0;
+  return {rules:rules.length,viol,hold,status:!rules.length?'NA':hold?(viol.every(v=>v.pend)?'PEND':'HOLD'):'PASS'};
+}
+const sblBadge=(st)=>st==='HOLD'?'<span class="st-hold">● HOLD</span>':st==='PEND'?`<span class="st-pend">◐ ${L('待重測','wait retest')}</span>`:st==='PASS'?'<span class="st-good">✓ PASS</span>':`<span class="muted">– ${L('無 limit','no limit')}</span>`;
+
+/* ========================= 載入 ========================= */
+const busy=(msg)=>new Promise(r=>{ const el=$('busy'); el.textContent=msg||''; el.classList.toggle('hidden',!msg); requestAnimationFrame(()=>setTimeout(r,0)); });   // 先讓畫面更新再做重的工作
+async function ingest(files,label){
+  const warn=[]; let rows=[]; let gotCfg=false;
+  try{
+    for(const f of files){
+      await busy(L(`讀取中… ${f.name}（${(f.size/1e6).toFixed(1)} MB）`,`Reading… ${f.name} (${(f.size/1e6).toFixed(1)} MB)`));
+      const text=decode(await f.arrayBuffer());
+      const table=parseCSV(text);
+      if(table.length<2){ warn.push(T(`${f.name}：沒有資料列`,`${f.name}: no data rows`)); continue; }
+      const kind=classify(table);
+      if(kind==='sbl'){ S.sbl=parseSBL(table,f.name,warn); S.sblSrc=f.name; gotCfg=true; saveSBL(); }
+      else if(kind==='bincfg'){ S.binCfg=parseBinCfg(table); S.cfgSrc=f.name; gotCfg=true; saveCfg(); }
+      else if(kind==='summary'){ const part=parseSummary(table,f.name,warn); rows=rows.length?rows.concat(part):part; }   // 不用 push(...大陣列)
+      else warn.push(T(`${f.name}：無法判斷檔案類型（找不到 HB 欄位或 Bin 欄位），已略過`,`${f.name}: unknown file type (no HB or Bin column), skipped`));
+    }
+    if(rows.length){ S.rows=rows; S.files=files.map(f=>f.name); S.srcLabel=label; }
+    else if(!gotCfg){ warn.push(T('沒有讀到任何 test summary 資料','No test summary data was read')); }
+    S.warnLoad=warn;
+    if(S.rows.length){ await busy(L(`計算中… ${S.rows.length.toLocaleString()} 筆`,`Calculating… ${S.rows.length.toLocaleString()} rows`)); refreshAll(rows.length>0); }
+    else if(gotCfg&&!warn.length) alert(L('已載入設定檔（Bin 設定 / SBL limit），請再讀取 test summary CSV。','Settings loaded (bin config / SBL limits). Now open a test summary CSV.'));
+    else showWarnOnly();
+  }catch(e){ alert(L('讀取失敗：','Read failed: ')+e.message); }
+  finally{ await busy(''); }
+}
+function showWarnOnly(){ if(S.warnLoad.length) alert(S.warnLoad.join('\n')); }
+
+/* ========================= 計算 ========================= */
+function addBins(dst,src){ for(const b in src) dst[b]=(dst[b]||0)+src[b]; }
+const goodOf=(bins)=>{ let g=0; for(const b in bins) if(isPass(b)) g+=bins[b]; return g; };
+const retestFailOf=(bins)=>{ let g=0; for(const b in bins) if(!isPass(b)&&!isNR(b)) g+=bins[b]; return g; };
+
+/* 重測分輪
+   · 全部 O 都有編號（O1、O2…）→ 依編號分輪，同編號合併
+   · 否則依數量串接：每一輪的 Input = 上一輪的可重測 fail 數。
+     依時間排序（同時間或只有日期時，Input 大的在前，因為每輪數量遞減），
+     同一輪的多筆（分機台重測）加總不超過應重測數就併在同一輪。 */
+function splitRounds(O,expect0){
+  const mk=(r)=>({round:r.round,t:r.t,rows:[r],input:r.input,bins:{...r.bins}});
+  const push=(g,r)=>{ g.rows.push(r); g.input+=r.input; addBins(g.bins,r.bins); };
+  const done=(g)=>({...g,good:goodOf(g.bins)});
+  if(O.length&&O.every(r=>r.round>0)){
+    const m=new Map(); O.slice().sort((a,b)=>a.round-b.round||(a.t??0)-(b.t??0)).forEach(r=>{ if(m.has(r.round)) push(m.get(r.round),r); else m.set(r.round,mk(r)); });
+    return [...m.values()].map(done);
+  }
+  const sorted=O.slice().sort((a,b)=>(a.t??0)-(b.t??0)||b.input-a.input||a.idx-b.idx);
+  const out=[]; let cur=null, expect=expect0;
+  for(const r of sorted){
+    const later=cur&&r.t!=null&&cur.t!=null&&r.t>Math.max(...cur.rows.map(x=>x.t??0));
+    const isNext=cur&&later&&Math.abs(r.input-retestFailOf(cur.bins))<0.5;  // 數量剛好接上一輪 → 下一輪
+    if(cur&&!isNext&&cur.input+r.input<=expect+0.5) push(cur,r);
+    else{ if(cur){ out.push(done(cur)); expect=retestFailOf(cur.bins); } cur=mk(r); }
+  }
+  if(cur) out.push(done(cur));
+  return out;
+}
+function computeLots(){
+  for(const r of S.rows) r.good=goodOf(r.bins);
+  const warn=[]; const map=new Map();
+  for(const r of S.rows){ const k=r.product+'|'+r.stage+'|'+r.lot; if(!map.has(k)) map.set(k,[]); map.get(k).push(r); }
+  const lots=[];
+  for(const [key,rs] of map){
+    const P=rs.filter(r=>r.mode==='P'), O=rs.filter(r=>r.mode==='O'&&r.input>0);
+    const lotName=rs[0].lot;
+    if(!P.length){ warn.push(T(`Lot ${lotName}（${rs[0].product}/${rs[0].stage}）只有重測資料、沒有 P，未列入計算`,`Lot ${lotName} (${rs[0].product}/${rs[0].stage}) has retest rows but no P; not counted`)); continue; }
+    const pBins={}; P.forEach(r=>addBins(pBins,r.bins));
+    const pIn=P.reduce((a,r)=>a+r.input,0), pGood=goodOf(pBins);
+    const rounds=splitRounds(O,retestFailOf(pBins));
+    let expect=retestFailOf(pBins); const lw=[];
+    rounds.forEach((rd,i)=>{ if(rd.input>expect+0.5) lw.push(T(`第 ${i+1} 次重測 Input ${rd.input} > 可重測數 ${expect}`,`retest ${i+1} Input ${rd.input} > retestable ${expect}`)); expect=retestFailOf(rd.bins); });
+    const oIn=rounds.reduce((a,r)=>a+r.input,0), oGood=rounds.reduce((a,r)=>a+r.good,0);
+    let fGood=pGood+oGood; if(fGood>pIn){ lw.push(T(`Final 良品 ${fGood} > P Input ${pIn}`,`Final good ${fGood} > P Input ${pIn}`)); fGood=pIn; }
+    const fBins={}; let counted=0;
+    const stagesB=[pBins,...rounds.map(r=>r.bins)];
+    stagesB.forEach((bins,i)=>{ const last=i===stagesB.length-1; for(const b in bins){ if(isPass(b)) continue; if(isNR(b)||last){ fBins[b]=(fBins[b]||0)+bins[b]; counted+=bins[b]; } } });
+    const rem=pIn-fGood-counted;
+    if(rem>0.5) fBins.NR=rem; else if(rem<-0.5) lw.push(T(`Final fail 加總比 P Input 多 ${-rem}（重測數量可能重複）`,`Final fails exceed P Input by ${-rem} (retest rows may be duplicated)`));
+    lw.forEach(w=>warn.push(T(`Lot ${lotName}（${rs[0].product}/${rs[0].stage}）：${w.zh}`,`Lot ${lotName} (${rs[0].product}/${rs[0].stage}): ${w.en}`)));
+    const pRetestable=retestFailOf(pBins);
+    if(pRetestable>0&&!rounds.length) lw.push(NOT_RT);
+    const tP=P.map(r=>r.t).filter(t=>t!=null);
+    lots.push({key,lot:lotName,product:rs[0].product,stage:rs[0].stage,t:tP.length?Math.min(...tP):null,
+      P,rounds,pBins,pIn,pGood,oIn,oGood,fGood,fBins,
+      fy:pIn?pGood/pIn:null, fny:pIn?fGood/pIn:null,
+      testers:[...new Set(P.map(r=>r.tester))], lbs:[...new Set(P.map(r=>r.lb))], warn:lw});
+  }
+  lots.sort((a,b)=>(a.t??Infinity)-(b.t??Infinity)||COLL.compare(a.lot,b.lot));
+  return {lots,warn};
+}
+
+/* ========================= 篩選 ========================= */
+const COLL=new Intl.Collator(undefined,{numeric:true});   // 比 localeCompare(…,{numeric}) 快很多
+const uniq=(a)=>[...new Set(a)].sort((x,y)=>COLL.compare(String(x),String(y)));
+const ymd=(t)=>{ const d=new Date(t); return d.toISOString().slice(0,10); };
+
+/* 多選篩選：S.f[key] = null（全部）或 Set（只含勾選的值） */
+const FDEF=[['product','Product'],['stage','Stage'],['tester','Tester'],['lb','Loadboard'],['bin','Bin'],['sbl','SBL']];
+const fTitle=(k,t)=>k==='sbl'?L('SBL 判定','SBL status'):t;
+const sblLabel=(v)=>({HOLD:'● HOLD',PEND:L('◐ 待重測','◐ wait retest'),PASS:'✓ PASS',NA:L('– 無 limit','– no limit')})[v]||v;
+S.f={}; S.fOpts={}; S.fOpen=JSON.parse(localStorage.getItem('tsbl.fopen')||'{"product":true,"tester":true,"lb":true}');
+function buildFilterOptions(){
+  const cnt=(vals)=>{ const m=new Map(); for(const v of vals) m.set(v,(m.get(v)||0)+1); return m; };
+  const L=S.lots;
+  const o={product:cnt(L.map(l=>l.product)),stage:cnt(L.map(l=>l.stage)),tester:cnt(L.flatMap(l=>l.testers)),lb:cnt(L.flatMap(l=>l.lbs))};
+  const tP=totals(L).P, tF=totals(L).F; const bm=new Map();
+  for(const b of new Set([...Object.keys(tP),...Object.keys(tF)])) if(!isPass(b)&&((tP[b]||0)+(tF[b]||0))>0) bm.set(b,tP[b]||tF[b]||0);
+  o.bin=new Map([...bm].sort((a,b)=>binSort(a[0],b[0])));
+  o.sbl=new Map(['HOLD','PEND','PASS','NA'].map(k=>[k,L.filter(l=>l.sbl.status===k).length]).filter(([,n])=>n>0));
+  for(const k of ['product','stage','tester','lb']) o[k]=new Map([...o[k]].sort((a,b)=>COLL.compare(a[0],b[0])));
+  S.fOpts=o;
+  // 保留仍存在的勾選；全部都勾 → 視為不篩選
+  for(const [k] of FDEF){ const sel=S.f[k]; if(!sel) continue; const keep=new Set([...sel].filter(v=>o[k].has(v))); S.f[k]=keep.size===o[k].size?null:keep; }
+  renderFilterGroups();
+}
+const fLabel=(k,v)=>k==='bin'?binName(v):k==='sbl'?sblLabel(v):v;
+function renderFilterGroups(){
+  $('fGroups').innerHTML=FDEF.map(([k,title])=>{
+    const opts=S.fOpts[k]||new Map(), sel=S.f[k];
+    const nSel=sel?sel.size:opts.size;
+    const items=[...opts].map(([v,n])=>{ const d=k==='bin'?cfgOf(v).desc+(isNR(v)?' ◆':''):'';
+      const cls=k==='sbl'?(v==='HOLD'?'st-hold':v==='PASS'?'st-good':''):'';
+      return `<label data-v="${esc(v)}" data-s="${esc((fLabel(k,v)+' '+d).toLowerCase())}"><input type="checkbox" ${!sel||sel.has(v)?'checked':''}><span class="${cls}">${esc(fLabel(k,v))}</span>${d?`<span class="d" title="${esc(d)}">${esc(d)}</span>`:''}<a class="only" data-only="1">${L('只選','only')}</a><span class="n" title="${k==='bin'?L('P fail 顆數','P fail pcs'):L('lot 數','lots')}">${n.toLocaleString()}</span></label>`; }).join('');
+    return `<details class="fgroup" data-k="${k}" ${S.fOpen[k]?'open':''}><summary>${esc(fTitle(k,title))}<span class="fc ${sel?'on':''}">${sel?`${nSel} / ${opts.size}`:`${L('全部','all')} ${opts.size}`}</span></summary>
+      <div class="fbar">${opts.size>8?`<input type="search" placeholder="${L('搜尋…','Search…')}">`:''}<button data-a="all">${L('全選','All')}</button><button data-a="none">${L('清除','None')}</button></div>
+      <div class="flist">${items||`<span class="muted">${L('（無）','(none)')}</span>`}</div></details>`;
+  }).join('');
+  renderFilterSummary(); applyFind();
+}
+function setFilter(k,set){ const all=S.fOpts[k]; S.f[k]=(set&&set.size===all.size)?null:set; renderFilterGroups(); hideTip(); render(); }
+function renderFilterSummary(){
+  const chips=FDEF.filter(([k])=>S.f[k]).map(([k,t])=>{ const s=[...S.f[k]]; const txt=s.length===0?L('（無）','(none)'):s.length<=2?s.map(v=>fLabel(k,v)).join(', '):`${s.length} ${L('項','items')}`;
+    return `<span class="chip">${esc(fTitle(k,t))}: <b>${esc(txt)}</b><a data-clear="${k}" title="${L('清除此篩選','Remove this filter')}">✕</a></span>`; });
+  if($('fFrom').value||$('fTo').value) chips.push(`<span class="chip">${L('日期','Date')}: <b>${$('fFrom').value||'…'} ~ ${$('fTo').value||'…'}</b><a data-clear="date">✕</a></span>`);
+  if($('fLot').value.trim()) chips.push(`<span class="chip">Lot: <b>${esc($('fLot').value.trim())}</b><a data-clear="lot">✕</a></span>`);
+  $('fSummary').innerHTML=chips.length?chips.join(''):L('（未篩選，顯示全部）','(no filter — showing everything)');
+}
+// 篩選群組事件（事件委派）
+$('fGroups').addEventListener('change',e=>{
+  const lab=e.target.closest('label[data-v]'); if(!lab) return;
+  const k=lab.closest('.fgroup').dataset.k, v=lab.dataset.v; const set=new Set(S.f[k]||S.fOpts[k].keys());
+  if(e.target.checked) set.add(v); else set.delete(v); setFilter(k,set);
+});
+$('fGroups').addEventListener('click',e=>{
+  const g=e.target.closest('.fgroup'); if(!g) return; const k=g.dataset.k;
+  if(e.target.dataset.only){ e.preventDefault(); setFilter(k,new Set([e.target.closest('label').dataset.v])); }
+  else if(e.target.dataset.a==='all') setFilter(k,null);
+  else if(e.target.dataset.a==='none') setFilter(k,new Set());
+});
+$('fGroups').addEventListener('input',e=>{
+  if(e.target.type!=='search') return; const q=e.target.value.trim().toLowerCase();
+  e.target.closest('.fgroup').querySelectorAll('.flist label').forEach(l=>l.style.display=!q||l.dataset.s.includes(q)?'':'none');
+});
+$('fGroups').addEventListener('toggle',e=>{ const g=e.target; if(!g.classList||!g.classList.contains('fgroup')||g.dataset.autoOpen||$('fFind').value.trim()) return; S.fOpen[g.dataset.k]=g.open; localStorage.setItem('tsbl.fopen',JSON.stringify(S.fOpen)); },true);
+$('fSummary').addEventListener('click',e=>{
+  const k=e.target.dataset.clear; if(!k) return; e.stopPropagation();
+  if(k==='date'){ $('fFrom').value=''; $('fTo').value=''; } else if(k==='lot') $('fLot').value=''; else S.f[k]=null;
+  renderFilterGroups(); render();
+});
+$('fClearAll').onclick=()=>{ S.f={}; $('fFrom').value=''; $('fTo').value=''; $('fLot').value=''; renderFilterGroups(); render(); };
+$('fExpandAll').onclick=()=>{ const gs=[...document.querySelectorAll('.fgroup')]; const open=!gs.every(g=>g.open); gs.forEach(g=>g.open=open); };
+/* 找篩選：比對篩選名稱（中英別名）與篩選值 */
+const FALIAS={product:'產品 device part',stage:'站別 step',tester:'機台 ate',lb:'load board 測試板 dib board',bin:'hard bin hb fail',sbl:'sbl hold pass 待重測 limit 判定 status'};
+function applyFind(){
+  const q=$('fFind').value.trim().toLowerCase(); let any=false;
+  document.querySelectorAll('.frow>label[data-find]').forEach(l=>{ const m=!q||(l.dataset.find+' '+l.textContent).toLowerCase().includes(q); l.classList.toggle('fhide',!m); if(q&&m) any=true; });
+  document.querySelectorAll('.fgroup').forEach(g=>{
+    const k=g.dataset.k, items=[...g.querySelectorAll('.flist label[data-v]')];
+    if(!q){ g.classList.remove('fhide'); items.forEach(l=>l.classList.remove('fhide2')); if(g.dataset.autoOpen){ delete g.dataset.autoOpen; g.open=!!S.fOpen[k]; } return; }
+    const name=(FDEF.find(x=>x[0]===k)[1]+' '+k+' '+FALIAS[k]).toLowerCase();
+    const nameHit=name.includes(q), hits=new Set(items.filter(l=>l.dataset.s.includes(q)||l.dataset.v.toLowerCase().includes(q)));
+    const show=nameHit||hits.size>0; if(show) any=true;
+    g.classList.toggle('fhide',!show);
+    items.forEach(l=>l.classList.toggle('fhide2',!nameHit&&!hits.has(l)));   // 名稱符合 → 顯示全部值；只有值符合 → 只顯示符合的值
+    if(show&&!g.open){ g.dataset.autoOpen='1'; g.open=true; }
+  });
+  $('fNoMatch').classList.toggle('hidden',!q||any);
+}
+$('fFind').addEventListener('input',applyFind);
+$('fFind').addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('fFind').value=''; applyFind(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='/'&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)&&!$('app').classList.contains('hidden')){ e.preventDefault();
+  const fc=$('filterCard'); if(fc.classList.contains('collapsed')) fc.querySelector('h2').click(); $('fFind').focus(); } });
+
+/* 篩選位置：上 / 左 / 右 */
+function applyLayout(pos){
+  pos=pos||localStorage.getItem('tsbl.fpos')||'top'; localStorage.setItem('tsbl.fpos',pos);
+  document.body.classList.remove('fpos-top','fpos-left','fpos-right'); document.body.classList.add('fpos-'+pos);
+  document.querySelectorAll('.fpos button').forEach(b=>b.classList.toggle('on',b.dataset.pos===pos));
+  $('app').classList.toggle('fcol',$('filterCard').classList.contains('collapsed'));
+  document.documentElement.style.setProperty('--hdr',document.querySelector('header').offsetHeight+'px');
+  if(S.rows.length){ hideTip(); render(); }   // 版面寬度變了 → 圖重畫
+}
+document.querySelectorAll('.fpos button').forEach(b=>b.addEventListener('click',()=>applyLayout(b.dataset.pos)));
+const binShown=(b)=>!S.f.bin||S.f.bin.has(b);
+function applyFilters(){
+  const from=$('fFrom').value?Date.parse($('fFrom').value+'T00:00:00Z'):null;
+  const to=$('fTo').value?Date.parse($('fTo').value+'T00:00:00Z')+864e5:null;
+  const lotQ=$('fLot').value.split(/[,，\s]+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const inF=(k,v)=>!S.f[k]||S.f[k].has(v), anyF=(k,a)=>!S.f[k]||a.some(v=>S.f[k].has(v));
+  return S.lots.filter(l=>inF('product',l.product)&&inF('stage',l.stage)&&anyF('tester',l.testers)&&anyF('lb',l.lbs)&&inF('sbl',l.sbl.status)
+    &&(from==null||(l.t!=null&&l.t>=from))&&(to==null||(l.t!=null&&l.t<to))
+    &&(!lotQ.length||lotQ.some(q=>l.lot.toLowerCase().includes(q))));
+}
+function groupKey(l,g){
+  const c=l._gk||(l._gk={}); return c[g]??(c[g]=groupKeyRaw(l,g));
+}
+function groupKeyRaw(l,g){
+  if(g==='lot') return l.key;
+  if(l.t==null) return '(無日期)';
+  const d=new Date(l.t);
+  if(g==='day') return ymd(l.t);
+  if(g==='month') return ymd(l.t).slice(0,7);
+  if(g==='quarter') return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth()/3)+1}`;
+  if(g==='year') return String(d.getUTCFullYear());
+  const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())); const dn=(x.getUTCDay()+6)%7; x.setUTCDate(x.getUTCDate()-dn+3);
+  const y=x.getUTCFullYear(); const w1=new Date(Date.UTC(y,0,4)); const wk=1+Math.round(((x-w1)/864e5-3+((w1.getUTCDay()+6)%7))/7);
+  return `${y}-W${String(wk).padStart(2,'0')}`;
+}
+function groupLots(lots,g){
+  const m=new Map();
+  for(const l of lots){
+    const k=groupKey(l,g);
+    if(!m.has(k)) m.set(k,{key:k,label:g==='lot'?l.lot:k==='(無日期)'?L('(無日期)','(no date)'):k,sub:g==='lot'?`${l.product} / ${l.stage}${l.t!=null?' · '+ymd(l.t):''}`:'',lots:[],pIn:0,pGood:0,fGood:0,oIn:0,oGood:0,pBins:{},fBins:{}});
+    const a=m.get(k); a.lots.push(l); a.pIn+=l.pIn; a.pGood+=l.pGood; a.fGood+=l.fGood; a.oIn+=l.oIn; a.oGood+=l.oGood; addBins(a.pBins,l.pBins); addBins(a.fBins,l.fBins);
+  }
+  const arr=[...m.values()];
+  if(g!=='lot') arr.sort((a,b)=>(a.key==='(無日期)')-(b.key==='(無日期)')||(a.key<b.key?-1:a.key>b.key?1:0));
+  return arr;
+}
+
+/* ========================= 圖表元件（SVG） ========================= */
+const tip=$('tip');
+function showTip(e,html){ tip.innerHTML=html; tip.style.display='block'; const w=tip.offsetWidth,h=tip.offsetHeight; let x=e.clientX+14,y=e.clientY+14; if(x+w>innerWidth-8) x=e.clientX-w-14; if(y+h>innerHeight-8) y=e.clientY-h-14; tip.style.left=x+'px'; tip.style.top=y+'px'; }
+function hideTip(){ tip.style.display='none'; }
+function niceTicks(lo,hi,count=5){
+  if(hi-lo<1e-12){ hi=lo+1; }
+  const raw=(hi-lo)/count, mag=Math.pow(10,Math.floor(Math.log10(raw))), e=raw/mag;
+  const step=(e>=7.5?10:e>=3.5?5:e>=1.5?2:1)*mag;
+  const a=Math.floor(lo/step+1e-9)*step, b=Math.ceil(hi/step-1e-9)*step; const t=[];
+  for(let v=a;v<=b+step/2;v+=step) t.push(+v.toFixed(10));
+  return {ticks:t,lo:a,hi:b,step};
+}
+function legendHTML(series,dot){ return series.length<2?'':`<div class="legend">${series.map(s=>`<span><i class="${dot?'dot':''}" style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`; }
+
+/* 折線圖：labels[], series[{name,color,values[]}], yFmt, cap100, tipSub(i) */
+const chartH=(host,h)=>host.closest('.zoomed')?Math.max(h,Math.round(innerHeight*0.94-230)):h;   // 放大時圖變高
+function lineChart(host,o){
+  const n=o.labels.length;
+  if(!n||!o.series.length){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const W=Math.max(360,host.clientWidth||800), H=chartH(host,o.height||300);
+  const direct=o.series.length<=4;
+  const rot=o.labels.some(l=>String(l).length>7)&&n>6;
+  const m={l:58,r:direct?118:18,t:12,b:rot?78:30};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const refs=o.refs||[];
+  const vals=o.series.flatMap(s=>s.values).concat(refs.map(r=>r.value)).filter(v=>v!=null&&isFinite(v));
+  if(!vals.length){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  let [lo,hi]=minmax(vals); const pad=(hi-lo)*0.08||Math.abs(hi)*0.02||0.01;
+  lo=o.zero?0:Math.max(o.zero===false?-Infinity:0,lo-pad); hi=hi+pad; if(o.cap100) hi=Math.min(1,hi);
+  let nt=niceTicks(lo,hi,5); if(o.cap100&&nt.hi>1){ nt.ticks=nt.ticks.filter(t=>t<=1+1e-9); nt.hi=Math.max(...nt.ticks,hi);}
+  const y0=nt.lo,y1=nt.hi;
+  const X=(i)=>m.l+(n===1?pw/2:i*pw/(n-1)), Y=(v)=>m.t+ph-(v-y0)/(y1-y0)*ph;
+  let s=`<svg width="${W}" height="${H}" role="img">`;
+  for(const t of nt.ticks){ const y=Y(t); s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${m.l-6}" y="${y+4}" text-anchor="end">${esc(o.yFmt(t,nt.step))}</text>`; }
+  s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${m.t+ph}" y2="${m.t+ph}" stroke="var(--axis)"/>`;
+  const placed=[];   // 避免同值 limit 的標籤重疊：往右錯開
+  refs.forEach(r=>{ const y=Y(r.value); let x=m.l+4; while(placed.some(p=>Math.abs(p.y-y)<12&&Math.abs(p.x-x)<130)) x+=130; placed.push({x,y});
+    s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-width="1.5" stroke-dasharray="6 4" opacity=".9"/><text x="${x}" y="${y-4}" style="fill:${r.color};font-weight:600;paint-order:stroke;stroke:var(--surface-1);stroke-width:3px">${esc(r.label)}</text>`; });
+  if(o.flags){ let d=''; o.flags.forEach((f,i)=>{ if(f) d+=`M${(X(i)-3.5).toFixed(1)},${m.t+2}h7l-3.5,6z`; }); if(d) s+=`<path d="${d}" fill="var(--critical)"/>`; }   // 一條 path，點再多也不卡
+  const every=Math.max(1,Math.ceil(n/Math.max(1,Math.floor(pw/(rot?20:72)))));
+  for(let i=0;i<n;i+=every){ const x=X(i),y=m.t+ph+14; s+=rot?`<text transform="translate(${x+3},${y-4}) rotate(-40)" text-anchor="end">${esc(o.labels[i])}</text>`:`<text x="${x}" y="${y}" text-anchor="middle">${esc(o.labels[i])}</text>`; }
+  const marker=n<=60;
+  o.series.forEach(se=>{
+    let d='',pen=false;
+    se.values.forEach((v,i)=>{ if(v==null||!isFinite(v)){pen=false;return;} d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1); pen=true; });
+    s+=`<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${se.dash?' stroke-dasharray="5 4"':''}/>`;
+    if(marker) se.values.forEach((v,i)=>{ if(v!=null&&isFinite(v)) s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="${n>30?2.5:3.5}" fill="${se.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`; });
+  });
+  if(direct){
+    const lab=o.series.map(se=>{ let i=se.values.length-1; while(i>=0&&(se.values[i]==null||!isFinite(se.values[i]))) i--; return i<0?null:{se,y:Y(se.values[i]),v:se.values[i]}; }).filter(Boolean).sort((a,b)=>a.y-b.y);
+    for(let i=1;i<lab.length;i++) if(lab[i].y-lab[i-1].y<14) lab[i].y=lab[i-1].y+14;
+    lab.forEach(l=>{ s+=`<circle cx="${m.l+pw+10}" cy="${l.y-4}" r="4" fill="${l.se.color}"/><text class="lbl" x="${m.l+pw+18}" y="${l.y}">${esc(l.se.name)} ${esc(o.yFmt(l.v))}</text>`; });
+  }
+  s+=`<line id="xh" x1="0" x2="0" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" visibility="hidden"/>`;
+  o.series.forEach((se,k)=>{ s+=`<circle class="hv" data-k="${k}" r="5" fill="${se.color}" stroke="var(--surface-1)" stroke-width="2" visibility="hidden"/>`; });
+  s+=`<rect class="ov" x="${m.l-10}" y="${m.t}" width="${pw+20}" height="${ph}" fill="transparent"/></svg>`;
+  host.innerHTML=(o.legend!==false?legendHTML(o.series):'')+s;
+  const svg=host.querySelector('svg'), xh=svg.querySelector('#xh'), hv=[...svg.querySelectorAll('.hv')], ov=svg.querySelector('.ov');
+  ov.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect(); const mx=e.clientX-r.left;
+    const i=n===1?0:Math.max(0,Math.min(n-1,Math.round((mx-m.l)/(pw/(n-1)))));
+    xh.setAttribute('x1',X(i)); xh.setAttribute('x2',X(i)); xh.setAttribute('visibility','visible');
+    let h=`<div class="t">${esc(o.labels[i])}</div>${o.tipSub?`<div class="muted" style="font-size:11.5px;margin-bottom:3px">${esc(o.tipSub(i))}</div>`:''}`;
+    o.series.map((se,k)=>({se,k,v:se.values[i]})).sort((a,b)=>(b.v??-1)-(a.v??-1)).forEach(({se,k,v})=>{
+      const c=hv[k]; if(v!=null&&isFinite(v)){ c.setAttribute('cx',X(i)); c.setAttribute('cy',Y(v)); c.setAttribute('visibility','visible'); } else c.setAttribute('visibility','hidden');
+      h+=`<div class="r"><span><i style="background:${se.color}"></i>${esc(se.name)}</span><span>${v==null?'–':esc(o.yFmt(v))}</span></div>`;
+    });
+    if(o.tipExtra) h+=o.tipExtra(i);
+    showTip(e,h);
+  });
+  ov.addEventListener('mouseleave',()=>{ xh.setAttribute('visibility','hidden'); hv.forEach(c=>c.setAttribute('visibility','hidden')); hideTip(); });
+  if(o.onClick) ov.addEventListener('click',e=>{ const r=svg.getBoundingClientRect(); const i=n===1?0:Math.max(0,Math.min(n-1,Math.round((e.clientX-r.left-m.l)/(pw/(n-1))))); o.onClick(i); });
+}
+
+/* 水平長條（從 0 起算）：items[{label,value,tag,tip}] */
+function hbar(host,o){
+  if(!o.items.length){ host.innerHTML=`<div class="empty">${L('無 fail bin','No fail bins')}</div>`; return; }
+  const W=Math.max(320,host.clientWidth||600), rh=26, m={l:120,r:150,t:6,b:24};
+  const H=m.t+m.b+rh*o.items.length, pw=W-m.l-m.r;
+  const max=Math.max(...o.items.map(i=>i.value)); const nt=niceTicks(0,max,4); const X=(v)=>m.l+v/nt.hi*pw;
+  let s=`<svg width="${W}" height="${H}">`;
+  nt.ticks.forEach(t=>{ s+=`<line x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--grid)"/><text x="${X(t)}" y="${H-m.b+15}" text-anchor="middle">${esc(o.fmt(t,nt.step))}</text>`; });
+  o.items.forEach((it,i)=>{
+    const y=m.t+i*rh+(rh-14)/2, w=Math.max(0,X(it.value)-m.l), r=Math.min(4,w);
+    s+=`<g class="hb" data-i="${i}"><rect x="0" y="${m.t+i*rh}" width="${W}" height="${rh}" fill="transparent"/>`;
+    s+=`<text class="lbl" x="${m.l-8}" y="${y+11}" text-anchor="end">${esc(it.label)}${it.tag?' ◆':''}</text>`;
+    s+=`<path d="M${m.l},${y}h${w-r}a${r},${r} 0 0 1 ${r},${r}v${14-2*r}a${r},${r} 0 0 1 -${r},${r}h-${w-r}z" fill="${o.color}"/>`;
+    s+=`<text class="val" x="${m.l+w+6}" y="${y+11}">${esc(it.valText)}</text></g>`;
+  });
+  s+=`<line x1="${m.l}" x2="${m.l}" y1="${m.t}" y2="${H-m.b}" stroke="var(--axis)"/></svg>`;
+  host.innerHTML=s;
+  host.querySelectorAll('.hb').forEach(g=>{ const it=o.items[+g.dataset.i]; g.addEventListener('mousemove',e=>showTip(e,it.tip)); g.addEventListener('mouseleave',hideTip); });
+}
+
+/* 點圖（啞鈴）：items[{label,values[],tip}], series[{name,color}], ref */
+function dotPlot(host,o){
+  if(!o.items.length){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const W=Math.max(360,host.clientWidth||700), rh=28, m={l:150,r:170,t:6,b:26};
+  const H=m.t+m.b+rh*o.items.length, pw=W-m.l-m.r;
+  const vals=o.items.flatMap(i=>i.values).filter(v=>v!=null&&isFinite(v)); if(o.ref!=null) vals.push(o.ref);
+  let [lo,hi]=minmax(vals); const pad=(hi-lo)*0.1||0.005; lo-=pad; hi=Math.min(1,hi+pad);
+  const nt=niceTicks(lo,hi,5); const ticks=nt.ticks.filter(t=>t<=1+1e-9); const x0=nt.lo, x1=Math.max(...ticks,hi);
+  const X=(v)=>m.l+(v-x0)/(x1-x0)*pw;
+  let s=`<svg width="${W}" height="${H}">`;
+  ticks.forEach(t=>{ s+=`<line x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--grid)"/><text x="${X(t)}" y="${H-m.b+15}" text-anchor="middle">${esc(o.fmt(t,nt.step))}</text>`; });
+  if(o.ref!=null) s+=`<line x1="${X(o.ref)}" x2="${X(o.ref)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--text-secondary)" stroke-dasharray="4 4"/>`;
+  o.items.forEach((it,i)=>{
+    const cy=m.t+i*rh+rh/2; const vs=it.values.filter(v=>v!=null&&isFinite(v));
+    s+=`<g class="dp" data-i="${i}"><rect x="0" y="${m.t+i*rh}" width="${W}" height="${rh}" fill="transparent"/>`;
+    s+=`<text class="lbl" x="${m.l-8}" y="${cy+4}" text-anchor="end">${esc(it.label)}</text>`;
+    if(vs.length>1) s+=`<line x1="${X(Math.min(...vs))}" x2="${X(Math.max(...vs))}" y1="${cy}" y2="${cy}" stroke="var(--axis)" stroke-width="2"/>`;
+    it.values.forEach((v,k)=>{ if(v!=null&&isFinite(v)) s+=`<circle cx="${X(v)}" cy="${cy}" r="5" fill="${o.series[k].color}" stroke="var(--surface-1)" stroke-width="2"/>`; });
+    s+=`<text class="val" x="${m.l+pw+12}" y="${cy+4}">${esc(it.valText)}</text>`;
+    if(it.flag) s+=`<text x="${W-4}" y="${cy+4}" text-anchor="end" style="fill:var(--critical);font-weight:600">${esc(it.flag)}</text>`;
+    s+=`</g>`;
+  });
+  s+=`</svg>`;
+  host.innerHTML=s;
+  host.querySelectorAll('.dp').forEach(g=>{ const it=o.items[+g.dataset.i]; g.addEventListener('mousemove',e=>showTip(e,it.tip)); g.addEventListener('mouseleave',hideTip); });
+}
+
+/* 直條圖（從 0 起算）：labels[], series[{name,color,values[]}], stacked, refs, flags, yFmt, tipSub, tipExtra, totalName */
+function xLabels(o,n,X,m,ph,pw,rot){ let s=''; const every=Math.max(1,Math.ceil(n/Math.max(1,Math.floor(pw/(rot?20:72)))));
+  for(let i=0;i<n;i+=every){ const x=X(i),y=m.t+ph+14; s+=rot?`<text transform="translate(${x+3},${y-4}) rotate(-40)" text-anchor="end">${esc(o.labels[i])}</text>`:`<text x="${x}" y="${y}" text-anchor="middle">${esc(o.labels[i])}</text>`; } return s; }
+function refLines(refs,Y,m,pw){ let s=''; const placed=[];
+  refs.forEach(r=>{ const y=Y(r.value); let x=m.l+4; while(placed.some(p=>Math.abs(p.y-y)<12&&Math.abs(p.x-x)<130)) x+=130; placed.push({x,y});
+    s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="${r.color}" stroke-width="1.5" stroke-dasharray="6 4" opacity=".9"/><text x="${x}" y="${y-4}" style="fill:${r.color};font-weight:600;paint-order:stroke;stroke:var(--surface-1);stroke-width:3px">${esc(r.label)}</text>`; }); return s; }
+function bandHover(host,o,n,m,pw,ph,bw,rowsFn){
+  const svg=host.querySelector('svg'), hl=svg.querySelector('.hl'), ov=svg.querySelector('.ov');
+  const idx=(e)=>{ const r=svg.getBoundingClientRect(); return Math.max(0,Math.min(n-1,Math.floor((e.clientX-r.left-m.l)/bw))); };
+  ov.addEventListener('mousemove',e=>{ const i=idx(e); hl.setAttribute('x',m.l+bw*i); hl.setAttribute('visibility','visible');
+    let h=`<div class="t">${esc(o.labels[i])}</div>${o.tipSub?`<div class="muted" style="font-size:11.5px;margin-bottom:3px">${esc(o.tipSub(i))}</div>`:''}`+rowsFn(i);
+    if(o.tipExtra) h+=o.tipExtra(i); showTip(e,h); });
+  ov.addEventListener('mouseleave',()=>{ hl.setAttribute('visibility','hidden'); hideTip(); });
+}
+function colChart(host,o){
+  const n=o.labels.length;
+  if(!n||!o.series.length){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const W=Math.max(360,host.clientWidth||800), H=chartH(host,o.height||300);
+  const rot=o.labels.some(l=>String(l).length>7)&&n>6;
+  const m={l:58,r:18,t:12,b:rot?78:30}, pw=W-m.l-m.r, ph=H-m.t-m.b, refs=o.refs||[];
+  const tops=o.labels.map((_,i)=>{ let t=0; for(const se of o.series){ const v=se.values[i]; if(v>0) t=o.stacked?t+v:Math.max(t,v); } return t; });
+  let hi=minmax(tops.concat(refs.map(r=>r.value)))[1]; if(!(hi>0)) hi=0.01;
+  const nt=niceTicks(0,hi*1.06,5), Y=(v)=>m.t+ph-v/nt.hi*ph, bw=pw/n, X=(i)=>m.l+bw*(i+.5);
+  let s=`<svg width="${W}" height="${H}" role="img">`;
+  for(const t of nt.ticks){ const y=Y(t); s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${m.l-6}" y="${y+4}" text-anchor="end">${esc(o.yFmt(t,nt.step))}</text>`; }
+  s+=`<rect class="hl" x="0" y="${m.t}" width="${bw}" height="${ph}" fill="var(--text-primary)" opacity=".06" visibility="hidden"/>`;
+  const inner=Math.min(90,Math.max(1,bw*(n>80?0.9:0.72))), k=o.series.length, sub=o.stacked?inner:inner/k, round=sub>=6;
+  const bar=(x,yTop,yBot,w,top)=>{ const h=yBot-yTop; if(h<=0.2) return ''; const r=top&&round?Math.min(4,w/2,h):0;
+    return r?`M${x.toFixed(1)},${yBot.toFixed(1)}V${(yTop+r).toFixed(1)}a${r},${r} 0 0 1 ${r},-${r}h${(w-2*r).toFixed(1)}a${r},${r} 0 0 1 ${r},${r}V${yBot.toFixed(1)}z`:`M${x.toFixed(1)},${yBot.toFixed(1)}V${yTop.toFixed(1)}h${w.toFixed(1)}V${yBot.toFixed(1)}z`; };
+  const paths=o.series.map(()=>''), base=new Array(n).fill(0);
+  for(let i=0;i<n;i++){
+    const x0=X(i)-inner/2; let lastK=-1; if(o.stacked) o.series.forEach((se,kk)=>{ if(se.values[i]>0) lastK=kk; });
+    o.series.forEach((se,kk)=>{ const v=se.values[i]; if(!(v>0)) return;
+      if(o.stacked){ const yb=Y(base[i]), yt=Y(base[i]+v); paths[kk]+=bar(x0,yt,yb-(base[i]>0&&yb-yt>2?1.5:0),sub,kk===lastK); base[i]+=v; }   // 1.5px 間隔分開堆疊段
+      else paths[kk]+=bar(x0+kk*sub+(k>1&&sub>4?1:0),Y(v),Y(0),Math.max(1,sub-(k>1&&sub>4?2:0)),true); });
+  }
+  o.series.forEach((se,kk)=>{ if(paths[kk]) s+=`<path d="${paths[kk]}" fill="${se.color}"/>`; });
+  s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${m.t+ph}" y2="${m.t+ph}" stroke="var(--axis)"/>`;
+  s+=refLines(refs,Y,m,pw);
+  if(o.flags){ let d=''; o.flags.forEach((f,i)=>{ if(f) d+=`M${(X(i)-3.5).toFixed(1)},${m.t+2}h7l-3.5,6z`; }); if(d) s+=`<path d="${d}" fill="var(--critical)"/>`; }
+  s+=xLabels(o,n,X,m,ph,pw,rot);
+  s+=`<rect class="ov" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
+  host.innerHTML=legendHTML(o.series)+s;
+  bandHover(host,o,n,m,pw,ph,bw,(i)=>{ const rows=(o.stacked?o.series.slice().reverse():o.series);
+    let h=rows.map(se=>`<div class="r"><span><i style="background:${se.color}"></i>${esc(se.name)}</span><span>${se.values[i]==null?'–':esc(o.yFmt(se.values[i]))}</span></div>`).join('');
+    if(o.totalName) h+=`<div class="r" style="font-weight:600"><span>${esc(o.totalName)}</span><span>${esc(o.yFmt(o.series.reduce((a,se)=>a+(se.values[i]||0),0)))}</span></div>`; return h; });
+}
+/* 箱形圖：labels[], series[{name,color}], data[i][k] = 該期間各 lot 的值（已排序） */
+const quant=(a,p)=>{ if(!a.length) return null; const x=(a.length-1)*p, lo=Math.floor(x), hi=Math.ceil(x); return a[lo]+(a[hi]-a[lo])*(x-lo); };
+function boxStats(a){ if(!a.length) return null; const q1=quant(a,.25), med=quant(a,.5), q3=quant(a,.75), iqr=q3-q1, lf=q1-1.5*iqr, hf=q3+1.5*iqr;
+  let lo=a[a.length-1], hi=a[0]; const out=[]; for(const v of a){ if(v<lf||v>hf) out.push(v); else { if(v<lo) lo=v; if(v>hi) hi=v; } }
+  return {n:a.length,min:a[0],max:a[a.length-1],q1,med,q3,lo,hi,out}; }
+function boxChart(host,o){
+  const n=o.labels.length;
+  if(!n){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const W=Math.max(360,host.clientWidth||800), H=chartH(host,o.height||320);
+  const rot=o.labels.some(l=>String(l).length>7)&&n>6;
+  const m={l:58,r:18,t:12,b:rot?78:30}, pw=W-m.l-m.r, ph=H-m.t-m.b, refs=o.refs||[];
+  const st=o.data.map(row=>row.map(boxStats));
+  let lo=Infinity, hi=-Infinity; st.forEach(r=>r.forEach(b=>{ if(b){ if(b.min<lo) lo=b.min; if(b.max>hi) hi=b.max; } })); refs.forEach(r=>{ if(r.value<lo) lo=r.value; if(r.value>hi) hi=r.value; });
+  if(!isFinite(lo)){ host.innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const pad=(hi-lo)*0.06||0.005; lo-=pad; hi=Math.min(1,hi+pad);
+  const nt=niceTicks(lo,hi,5); const ticks=nt.ticks.filter(t=>t<=1+1e-9); const y0=nt.lo, y1=Math.max(ticks[ticks.length-1],hi);
+  const Y=(v)=>m.t+ph-(v-y0)/(y1-y0)*ph, bw=pw/n, X=(i)=>m.l+bw*(i+.5), k=o.series.length;
+  let s=`<svg width="${W}" height="${H}" role="img">`;
+  for(const t of ticks){ const y=Y(t); s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${m.l-6}" y="${y+4}" text-anchor="end">${esc(o.yFmt(t,nt.step))}</text>`; }
+  s+=`<rect class="hl" x="0" y="${m.t}" width="${bw}" height="${ph}" fill="var(--text-primary)" opacity=".06" visibility="hidden"/>`;
+  s+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${m.t+ph}" y2="${m.t+ph}" stroke="var(--axis)"/>`;
+  s+=refLines(refs,Y,m,pw);
+  const slot=Math.min(bw*0.8/k,40), w=Math.max(2,slot*0.72); let nOut=0;
+  o.series.forEach((se,kk)=>{ let box='',wh='',med='',out='';
+    st.forEach((r,i)=>{ const b=r[kk]; if(!b) return; const cx=X(i)+(kk-(k-1)/2)*slot, x=cx-w/2;
+      wh+=`M${cx.toFixed(1)},${Y(b.hi).toFixed(1)}V${Y(b.q3).toFixed(1)}M${cx.toFixed(1)},${Y(b.q1).toFixed(1)}V${Y(b.lo).toFixed(1)}`;
+      if(w>=6) wh+=`M${(cx-w/4).toFixed(1)},${Y(b.hi).toFixed(1)}h${(w/2).toFixed(1)}M${(cx-w/4).toFixed(1)},${Y(b.lo).toFixed(1)}h${(w/2).toFixed(1)}`;
+      box+=`M${x.toFixed(1)},${Y(b.q3).toFixed(1)}h${w.toFixed(1)}V${Math.max(Y(b.q1),Y(b.q3)+1).toFixed(1)}h-${w.toFixed(1)}z`;
+      med+=`M${x.toFixed(1)},${Y(b.med).toFixed(1)}h${w.toFixed(1)}`;
+      if(nOut<3000) for(const v of b.out){ if(nOut++>=3000) break; out+=`<circle cx="${cx.toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.2"/>`; } });
+    s+=`<path d="${wh}" stroke="${se.color}" stroke-width="1.3" fill="none"/><path d="${box}" fill="${se.color}" fill-opacity=".28" stroke="${se.color}" stroke-width="1.4"/><path d="${med}" stroke="${se.color}" stroke-width="2.6"/><g fill="none" stroke="${se.color}" stroke-width="1.2" opacity=".85">${out}</g>`; });
+  if(o.flags){ let d=''; o.flags.forEach((f,i)=>{ if(f) d+=`M${(X(i)-3.5).toFixed(1)},${m.t+2}h7l-3.5,6z`; }); if(d) s+=`<path d="${d}" fill="var(--critical)"/>`; }
+  s+=xLabels(o,n,X,m,ph,pw,rot);
+  s+=`<rect class="ov" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
+  host.innerHTML=legendHTML(o.series)+s;
+  bandHover(host,o,n,m,pw,ph,bw,(i)=>o.series.map((se,kk)=>{ const b=st[i][kk]; if(!b) return '';
+    return `<div class="r" style="margin-top:3px"><span><i style="background:${se.color}"></i><b>${esc(se.name)}</b></span><span>n = ${b.n}</span></div>`+
+      `<div class="r"><span>${L('中位數','Median')}</span><span>${esc(o.yFmt(b.med))}</span></div><div class="r"><span>Q1 – Q3</span><span>${esc(o.yFmt(b.q1))} – ${esc(o.yFmt(b.q3))}</span></div><div class="r"><span>${L('最低 – 最高','Min – max')}</span><span>${esc(o.yFmt(b.min))} – ${esc(o.yFmt(b.max))}</span></div>`; }).join(''));
+}
+function seqColor(f){ if(!(f>0)) return null; const i=Math.min(SEQ.length-1,Math.floor(f*(SEQ.length-1)+0.0001)); return {bg:SEQ[i],fg:i>=6?'#ffffff':'#0b0b0b'}; }
+
+/* ========================= 畫面 ========================= */
+function refreshAll(newData){
+  binTypeCache.clear(); totCache.lots=null;
+  const {lots,warn}=computeLots(); S.lots=lots; S.warnCalc=warn;
+  ruleCache.clear(); lots.forEach(l=>l.sbl=evalSBL(l));
+  const bins=new Set(); S.rows.forEach(r=>Object.keys(r.bins).forEach(b=>bins.add(b))); S.allBins=[...bins].sort(binSort);
+  if(newData){
+    initBinSlots();
+    if(lots.length>1000&&$('fGroup').value==='lot'){ $('fGroup').value='day'; S.autoGroupMsg=T(`資料有 ${lots.length.toLocaleString()} 個 lot，Trend 已自動改為「每日」（可再切回每 Lot）`,`The data has ${lots.length.toLocaleString()} lots, so the trends switched to daily (you can switch back to per lot)`); } else S.autoGroupMsg='';
+    if(lots.length>1000){ for(const c of ['y','b']) if(S.cv[c].u==='lot') S.cv[c].u='day'; }
+  }
+  buildFilterOptions();
+  $('dropCard').classList.add('hidden'); $('app').classList.remove('hidden');
+  srcInfo();
+  render();
+}
+function srcInfo(){ if(S.rows.length) $('srcInfo').textContent=L(`${S.srcLabel}：${S.files.length} 檔 · ${S.rows.length} 筆 · ${S.lots.length} lots`,`${S.srcLabel}: ${S.files.length} files · ${S.rows.length} rows · ${S.lots.length} lots`); }
+function initBinSlots(){
+  // 依整體 P fail 數量排序，前 6 個 fail bin 預設顯示；顏色跟著 bin 固定，不因篩選重排
+  const tot={}; S.lots.forEach(l=>addBins(tot,l.pBins));
+  const fails=Object.keys(tot).filter(b=>!isPass(b)&&tot[b]>0).sort((a,b)=>tot[b]-tot[a]);
+  const keep=[...S.binSlot.keys()].filter(b=>fails.includes(b));
+  if(!keep.length){ S.binSlot.clear(); fails.slice(0,6).forEach((b,i)=>S.binSlot.set(b,i)); }
+}
+const totCache={lots:null};
+function totals(lots){   // 同一批 lots 的 P / Final bin 加總只算一次
+  if(totCache.lots!==lots){ const P={},F={}; for(const l of lots){ addBins(P,l.pBins); addBins(F,l.fBins); } Object.assign(totCache,{lots,P,F}); }
+  return totCache;
+}
+function render(){
+  const lots=applyFilters(); S.lotsF=lots;
+  renderKPI(lots); renderWarn(lots); renderSBL(lots);
+  const g=$('fGroup').value, basis=$('fBasis').value, uy=S.cv.y.u, ub=S.cv.b.u;
+  const groups=groupLots(lots,g), gy=uy===g?groups:groupLots(lots,uy), gb=ub===g?groups:ub===uy?gy:groupLots(lots,ub);
+  syncCtools();
+  renderYield(gy,uy); renderBinPick(lots,basis); renderBinTrend(gb,ub,basis); renderPareto(lots,basis); renderHeat(groups,basis);
+  renderPerf(lots); renderMatrix(lots); renderLotTable(lots); renderCfg();
+}
+function renderKPI(lots){
+  const pIn=lots.reduce((a,l)=>a+l.pIn,0), pG=lots.reduce((a,l)=>a+l.pGood,0), fG=lots.reduce((a,l)=>a+l.fGood,0);
+  const oIn=lots.reduce((a,l)=>a+l.oIn,0), oG=lots.reduce((a,l)=>a+l.oGood,0);
+  let nrF=0; lots.forEach(l=>{ for(const b in l.fBins) if(b!=='NR'&&isNR(b)) nrF+=l.fBins[b]; });
+  const pend=lots.filter(l=>l.warn.includes(NOT_RT)).length;
+  const k=[['Lots',num(lots.length),`${uniq(lots.map(l=>l.product)).length} products`],
+    ['P Input',num(pIn),L('第一次測總數','first-test units')],
+    ['First Yield',pct(pIn?pG/pIn:null),`${num(pG)} good`],
+    ['Final Yield',pct(pIn?fG/pIn:null),`${num(fG)} good · +${pIn?((fG-pG)/pIn*100).toFixed(2):'–'} pp`],
+    ['Retest Recovery',pct(oIn?oG/oIn:null),`${num(oG)} / ${num(oIn)} ${L('重測救回','recovered')}`],
+    [L('不可重測 bin 損失','Non-retestable loss'),pct(pIn?nrF/pIn:null),`${num(nrF)} pcs`+(pend?` · ${pend} ${L('lot 尚未重測','lots not retested')}`:'')]];
+  const hold=lots.filter(l=>l.sbl.status==='HOLD').length, pd=lots.filter(l=>l.sbl.status==='PEND').length;
+  k.push(S.sbl.length?['SBL Hold',`<span class="${hold?'st-hold':'st-good'}">${hold?'● ':'✓ '}${hold}</span>`,`${lots.length?(hold/lots.length*100).toFixed(1):0}% of lots`+(pd?` · ${pd} ${L('待重測','wait retest')}`:'')]:['SBL Hold','–',L('尚未載入 SBL limit','no SBL limits loaded')]);
+  $('kpis').innerHTML=k.map(([a,b,c])=>`<div class="kpi"><div class="k">${a}</div><div class="v">${b}</div><div class="d">${esc(c)}</div></div>`).join('');
+}
+function renderSBL(lots){
+  $('sblSrc').textContent=S.sbl.length?L(`${trSrc(S.sblSrc)}（${S.sbl.length} 條）`,`${trSrc(S.sblSrc)} (${S.sbl.length} rules)`):L('尚未載入 — 請匯入 SBL limit CSV（也可與 test summary 一起拖曳進來）','not loaded — import an SBL limit CSV (or drop it together with the test summary)');
+  $('sblBody').classList.toggle('hidden',!S.sbl.length);
+  if(!S.sbl.length) return;
+  // 依項目統計違規 lot 數
+  const cnt=new Map(); lots.forEach(l=>l.sbl.viol.forEach(v=>{ const k=itemName(v.item)+(v.basis==='F'&&v.item!=='FNY'?' (Final)':''); cnt.set(k,(cnt.get(k)||0)+1); }));
+  const items=[...cnt].sort((a,b)=>b[1]-a[1]);
+  hbar($('cSbl'),{color:cssv('--s1'),fmt:(v)=>Number.isInteger(v)?String(v):'',items:items.map(([k,c])=>({label:k,value:c,valText:`${c} lots · ${(c/lots.length*100).toFixed(1)}%`,
+    tip:`<div class="t">${esc(k)}</div><div class="r"><span>${L('違規 lot','Lots over limit')}</span><span>${c} / ${lots.length}</span></div>`}))});
+  if(!items.length) $('cSbl').innerHTML=`<div class="empty">✓ ${L('目前篩選範圍內沒有違規','No violations in the current filters')}</div>`;
+  // limit 列表
+  const rc=new Map(); lots.forEach(l=>l.sbl.viol.forEach(v=>rc.set(v.rule,(rc.get(v.rule)||0)+1)));
+  const rs=S.sbl.slice().sort((a,b)=>(a.item==='FY'||a.item==='FNY')-(b.item==='FY'||b.item==='FNY')||binSort(a.item,b.item)||a.row-b.row);
+  $('sblRules').innerHTML=`<table><thead><tr><th class="l">Product</th><th class="l">Stage</th><th class="l">${L('項目','Item')}</th><th class="l">Basis</th><th>Max %</th><th>Max Qty</th><th>Min %</th><th>${L('違規 lot','Lots over')}</th><th class="l">${L('備註','Remark')}</th></tr></thead><tbody>`+
+    rs.map(r=>`<tr><td class="l">${esc(r.product)}</td><td class="l">${esc(r.stage)}</td><td class="l">${esc(itemName(r.item))}</td><td class="l">${r.basis==='F'?'Final':'P'}</td><td>${r.max??''}</td><td>${r.qty??''}</td><td>${r.min??''}</td><td class="${rc.get(r)?'st-hold':''}">${rc.get(r)||''}</td><td class="l">${esc(r.remark)}</td></tr>`).join('')+'</tbody></table>';
+  // lot 判定表
+  const only=$('sblOnlyHold').checked;
+  const list=lots.filter(l=>!only||l.sbl.hold).slice().sort((a,b)=>(b.sbl.status==='HOLD')-(a.sbl.status==='HOLD')||(b.t??0)-(a.t??0));
+  $('sblTable').innerHTML=!list.length?`<div class="empty">✓ ${L('沒有 Hold lot','No hold lots')}</div>`:
+    `<table><thead><tr><th class="l">${L('判定','Status')}</th><th class="l">Date</th><th class="l">Product</th><th class="l">Stage</th><th class="l">Lot</th><th class="l">Tester</th><th class="l">Loadboard</th><th>P Input</th><th>First Yield</th><th>Final Yield</th><th class="l">${L('違規項目','Violations')}</th></tr></thead><tbody>`+
+    list.slice(0,MAXROWS).map(l=>`<tr><td class="l">${sblBadge(l.sbl.status)}</td><td class="l">${l.t!=null?ymd(l.t):''}</td><td class="l">${esc(l.product)}</td><td class="l">${esc(l.stage)}</td><td class="l">${esc(l.lot)}</td><td class="l">${esc(l.testers.join('/'))}</td><td class="l">${esc(l.lbs.join('/'))}</td><td>${num(l.pIn)}</td><td>${pct(l.fy)}</td><td>${pct(l.fny)}</td><td class="l">${l.sbl.viol.map(v=>`<span class="tag" style="color:var(--critical)">${esc(v.text)}${v.pend?L('（待重測）',' (wait retest)'):''}</span>`).join(' ')}</td></tr>`).join('')+'</tbody></table>'+capNote(list.length,MAXROWS);
+}
+function renderWarn(lots){
+  const keys=new Set(lots.map(l=>l.lot));
+  const w=[...(S.autoGroupMsg?[S.autoGroupMsg]:[]),...S.warnLoad,...(S.warnCalc||[])];
+  $('warnCard').classList.toggle('hidden',!w.length);
+  $('warnBox').innerHTML=w.slice(0,300).map(x=>`<div>${esc(x)}</div>`).join('')+(w.length>300?`<div>… ${L(`還有 ${w.length-300} 筆`,`${w.length-300} more`)}</div>`:'');
+}
+const pctAxis=(v,step)=>{ const d=step!=null?Math.max(0,Math.ceil(-Math.log10(step*100)+1e-9)):2; return (v*100).toFixed(Math.min(3,d))+'%'; };
+/* 篩選範圍內所有 lot 用同一個 limit 才回傳（否則 null，不畫 limit 線） */
+function commonLimit(lots,item,basis,field){
+  let v; for(const l of lots){ const r=rulesFor(l.product,l.stage).find(r=>r.item===item&&r.basis===basis); const x=r?r[field]:null; if(x==null) return null; if(v===undefined) v=x; else if(v!==x) return null; }
+  return v??null;
+}
+function sblTip(x){
+  const h=x.lots.filter(l=>l.sbl.hold); if(!S.sbl.length) return '';
+  if(x.lots.length===1){ const l=x.lots[0]; return `<div class="r"><span>SBL</span><span>${sblBadge(l.sbl.status)}</span></div>`+l.sbl.viol.map(v=>`<div style="color:var(--critical);font-size:12px">• ${esc(v.text)}</div>`).join(''); }
+  return `<div class="r"><span>SBL Hold</span><span class="${h.length?'st-hold':''}">${h.length} / ${x.lots.length} lots</span></div>`;
+}
+const CV_NOTE={lot:['每 Lot','per lot'],day:['每日','per day'],week:['每週（ISO 週）','per ISO week'],month:['每月','per month'],quarter:['每季','per quarter'],year:['每年','per year']};
+function syncCtools(){ document.querySelectorAll('.cseg button').forEach(b=>{ const v=S.cv[b.parentElement.dataset.c]; b.classList.toggle('on',b.dataset.u?b.dataset.u===v.u:b.dataset.t===v.t); if(b.dataset.t==='box'){ b.title=L('箱形圖需依時間分組（日 / 週 / 月 / 季 / 年）','Box plots need a time unit (day / week / month / quarter / year)'); } }); }
+document.querySelectorAll('.cseg').forEach(sg=>sg.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const v=S.cv[sg.dataset.c];
+  if(b.dataset.u){ v.u=b.dataset.u; if(v.u==='lot'&&v.t==='box') v.t='line'; }
+  if(b.dataset.t){ v.t=b.dataset.t; if(v.t==='box'&&v.u==='lot') v.u='week'; }   // 箱形圖需要每個期間多個 lot
+  localStorage.setItem('tsbl.ctype',JSON.stringify({y:S.cv.y.t,b:S.cv.b.t})); hideTip(); if(S.rows.length) render(); }));
+function renderYield(groups,g){
+  const lots=groups.flatMap(x=>x.lots), refs=[];
+  const fyL=commonLimit(lots,'FY','P','min'), fnL=commonLimit(lots,'FNY','F','min');
+  if(fyL!=null) refs.push({value:fyL/100,color:cssv('--s1'),label:`First Yield limit ${fyL}%`});
+  if(fnL!=null) refs.push({value:fnL/100,color:cssv('--s2'),label:`Final Yield limit ${fnL}%`});
+  const t=S.cv.y.t, unit=L(CV_NOTE[g][0],CV_NOTE[g][1]);
+  const flags=S.sbl.length?groups.map(x=>x.lots.some(l=>l.sbl.status==='HOLD')):null;
+  const tipSub=(i)=>groups[i].sub||`${groups[i].lots.length} lots`;
+  const tipExtra=(i)=>{ const x=groups[i]; return `<div class="r"><span>P Input</span><span>${num(x.pIn)}</span></div><div class="r"><span>${L('重測 Input / 良品','Retest Input / good')}</span><span>${num(x.oIn)} / ${num(x.oGood)}</span></div>`+(g==='lot'?`<div class="r"><span>Tester / LB</span><span>${esc(x.lots[0].testers.join(','))} / ${esc(x.lots[0].lbs.join(','))}</span></div>`:'')+sblTip(x); };
+  const labels=groups.map(x=>x.label), yFmt=(v,st)=>st!=null?pctAxis(v,st):pct(v);
+  if(t==='loss'){
+    $('yieldSub').innerHTML=L(`良率損失（${unit}，加權）。整根長條 = First Yield 損失（100% − First Yield）；下段 = 重測後仍 fail 的 Final 損失，上段 = 重測救回。上方紅色 ▼ = 含 SBL Hold lot；虛線 = 良率 limit 換算的損失上限`,
+      `Yield loss (${unit}, weighted). The whole bar = First Yield loss (100% − First Yield); lower part = Final loss still failing after retest, upper part = recovered by retest. Red ▼ = contains an SBL Hold lot; dashed = loss limit from the yield limits`);
+    const lr=[]; if(fyL!=null) lr.push({value:1-fyL/100,color:cssv('--s1'),label:L(`First 損失上限 ${(100-fyL).toFixed(2)}%`,`First loss limit ${(100-fyL).toFixed(2)}%`)});
+    if(fnL!=null) lr.push({value:1-fnL/100,color:cssv('--s2'),label:L(`Final 損失上限 ${(100-fnL).toFixed(2)}%`,`Final loss limit ${(100-fnL).toFixed(2)}%`)});
+    colChart($('cYield'),{labels,stacked:true,refs:lr,flags,tipSub,tipExtra,yFmt,totalName:L('First Yield 損失','First Yield loss'),
+      series:[{name:L('Final 損失（重測後仍 fail）','Final loss (still failing)'),color:cssv('--s2'),values:groups.map(x=>x.pIn?1-x.fGood/x.pIn:null)},
+              {name:L('重測救回','Recovered by retest'),color:cssv('--s3'),values:groups.map(x=>x.pIn?(x.fGood-x.pGood)/x.pIn:null)}]});
+    return;
+  }
+  if(t==='box'){
+    $('yieldSub').innerHTML=L(`各 lot 良率的分佈（${unit}）：箱 = Q1–Q3，粗線 = 中位數，鬚 = 1.5×IQR 內的最低 / 最高，圈 = 離群 lot。上方紅色 ▼ = 含 SBL Hold lot；虛線 = 良率 limit`,
+      `Distribution of lot yields (${unit}): box = Q1–Q3, thick line = median, whiskers = lowest / highest within 1.5×IQR, circles = outlier lots. Red ▼ = contains an SBL Hold lot; dashed = yield limits`);
+    const srt=(a)=>a.filter(v=>v!=null&&isFinite(v)).sort((p,q)=>p-q);
+    boxChart($('cYield'),{labels,refs,flags,tipSub,tipExtra,yFmt,
+      series:[{name:'First Yield',color:cssv('--s1')},{name:'Final Yield',color:cssv('--s2')}],
+      data:groups.map(x=>[srt(x.lots.map(l=>l.fy)),srt(x.lots.map(l=>l.fny))])});
+    return;
+  }
+  $('yieldSub').innerHTML=L(`First Yield 與 Final Yield 隨時間的變化（${unit}，加權：Σ良品 ÷ ΣP Input）。上方紅色 ▼ = 該點有 SBL Hold lot；虛線 = 良率 limit`,
+    `First Yield and Final Yield over time (${unit}, weighted: Σ good ÷ Σ P Input). Red ▼ = the point contains an SBL Hold lot; dashed = yield limits`);
+  lineChart($('cYield'),{labels,cap100:true,refs,flags,tipSub,tipExtra,yFmt,
+    series:[{name:'First Yield',color:cssv('--s1'),values:groups.map(x=>x.pIn?x.pGood/x.pIn:null)},
+            {name:'Final Yield',color:cssv('--s2'),values:groups.map(x=>x.pIn?x.fGood/x.pIn:null)}]});
+}
+function slotColor(b){ const k=S.binSlot.get(b); return k==null?null:cssv(SLOTS[k]); }
+function renderBinPick(lots,basis){
+  const tot=basis==='P'?totals(lots).P:totals(lots).F;
+  const bins=Object.keys(tot).filter(b=>!isPass(b)&&tot[b]>0&&binShown(b)).sort(binSort);
+  $('binTrendSub').innerHTML=L(`每個 bin 佔 P Input 的 %（${basis==='P'?'First pass':'Final'}，${L(CV_NOTE[S.cv.b.u][0],'')}）。最多同時選 8 個 bin；顏色固定跟著 bin。◆ = 不可重測 bin`,`Each bin as % of P Input (${basis==='P'?'first pass':'final'}, ${CV_NOTE[S.cv.b.u][1]}). Pick up to 8 bins; each bin keeps its colour. ◆ = non-retestable bin`);
+  $('binPick').innerHTML=bins.map(b=>{ const c=slotColor(b); return `<label title="${esc(cfgOf(b).desc)}"><input type="checkbox" data-b="${b}" ${c?'checked':''}><span class="sw" style="background:${c||'transparent'}"></span>${binName(b)}${isNR(b)?' ◆':''}</label>`; }).join('')+
+    `<button id="binAll" style="padding:1px 8px">${L('前 6 大','Top 6')}</button><button id="binNone" style="padding:1px 8px">${L('清空','None')}</button>`;
+  $('binPick').querySelectorAll('input').forEach(el=>el.addEventListener('change',()=>{
+    const b=el.dataset.b;
+    if(el.checked){ const used=new Set(S.binSlot.values()); const free=[0,1,2,3,4,5,6,7].find(i=>!used.has(i)); if(free==null){ el.checked=false; alert(L('最多同時顯示 8 個 bin','Up to 8 bins can be shown at once')); return; } S.binSlot.set(b,free); }
+    else S.binSlot.delete(b);
+    render();
+  }));
+  $('binAll').onclick=()=>{ S.binSlot.clear(); bins.slice().sort((a,b)=>tot[b]-tot[a]).slice(0,6).forEach((b,i)=>S.binSlot.set(b,i)); render(); };
+  $('binNone').onclick=()=>{ S.binSlot.clear(); render(); };
+}
+function renderBinTrend(groups,g,basis){
+  const sel=[...S.binSlot.keys()].filter(binShown).sort(binSort);
+  const lots=groups.flatMap(x=>x.lots), refs=[]; let mixed=false;
+  if(S.sbl.length) sel.forEach(b=>{ const lim=commonLimit(lots,b,basis,'max');
+    if(lim!=null) refs.push({value:lim/100,color:slotColor(b),label:`${binName(b)} SBL ${lim}%`});
+    else if(lots.some(l=>rulesFor(l.product,l.stage).some(r=>r.item===b&&r.basis===basis&&r.max!=null))) mixed=true; });
+  const bt=S.cv.b.t;
+  $('binTrendSub').innerHTML+=bt==='stack'?L('　堆疊長條 = 所選 bin 加總；SBL limit 線請用折線或分組長條查看',' Stacked bars = total of the selected bins; switch to line or grouped bars to see SBL limit lines'):S.sbl.length?L(`　虛線 = SBL limit（${basis==='P'?'Basis P':'Basis Final'}）${mixed?'；部分 bin 各產品 limit 不同，請篩選 Product / Stage 以顯示其 limit 線':''}`,` Dashed = SBL limit (${basis==='P'?'Basis P':'Basis Final'})${mixed?'; some bins have different limits per product — filter by Product / Stage to see their limit lines':''}`):'';
+  (bt==='line'?lineChart:colChart)($('cBin'),{labels:groups.map(x=>x.label),zero:true,height:320,refs:bt==='stack'?[]:refs,stacked:bt==='stack',totalName:L('所選 bin 合計','Selected bins total'),
+    flags:S.sbl.length?groups.map(x=>x.lots.some(l=>l.sbl.viol.some(v=>sel.includes(v.item)&&v.basis===basis))):null,
+    tipExtra:(i)=>sblTip(groups[i]),
+    series:sel.map(b=>({name:binName(b)+(isNR(b)?' ◆':''),color:slotColor(b),values:groups.map(x=>x.pIn?((basis==='P'?x.pBins:x.fBins)[b]||0)/x.pIn:null)})),
+    yFmt:(v,st)=>st!=null?pctAxis(v,st):pct(v,3),
+    tipSub:(i)=>groups[i].sub||`${groups[i].lots.length} lots · P Input ${num(groups[i].pIn)}`});
+}
+function renderPareto(lots,basis){
+  const tot=basis==='P'?totals(lots).P:totals(lots).F; let pIn=0; for(const l of lots) pIn+=l.pIn;
+  const fails=Object.keys(tot).filter(b=>!isPass(b)&&tot[b]>0&&binShown(b)).sort((a,b)=>tot[b]-tot[a]);
+  const fsum=fails.reduce((a,b)=>a+tot[b],0); let cum=0;
+  $('paretoSub').textContent=L(`${basis==='P'?'First pass':'Final'}，佔 P Input 的 %；右側為數量與累積占 fail 比例。◆ = 不可重測`,`${basis==='P'?'First pass':'Final'}, % of P Input; right: pieces and cumulative share of fails. ◆ = non-retestable`);
+  hbar($('cPareto'),{color:cssv('--s1'),fmt:(v,st)=>pctAxis(v,st),items:fails.map(b=>{ cum+=tot[b]; const c=cfgOf(b);
+    return {label:binName(b)+(c.desc?' '+c.desc:''),tag:isNR(b),value:tot[b]/pIn,valText:`${pct(tot[b]/pIn,3)} · ${num(tot[b])} · ${(cum/fsum*100).toFixed(0)}%`,
+      tip:`<div class="t">${binName(b)} ${esc(c.desc)}</div><div class="r"><span>${L('數量','Pieces')}</span><span>${num(tot[b])}</span></div><div class="r"><span>${L('佔 P Input','of P Input')}</span><span>${pct(tot[b]/pIn,3)}</span></div><div class="r"><span>${L('佔 fail','of fails')}</span><span>${pct(tot[b]/fsum,1)}</span></div><div class="r"><span>${L('類型','Type')}</span><span>${b==='NR'?L('未重測','not retested'):isNR(b)?L('不可重測','non-retestable'):L('可重測','retestable')}</span></div>`}; })});
+}
+function renderHeat(groups,basis){
+  const tot={}; groups.forEach(x=>addBins(tot,basis==='P'?x.pBins:x.fBins));
+  const bins=Object.keys(tot).filter(b=>!isPass(b)&&tot[b]>0&&binShown(b)).sort(binSort);
+  if(!groups.length){ $('heat').innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const nG=groups.length; if(nG>400) groups=groups.slice(-400);
+  const colMax={}; bins.forEach(b=>colMax[b]=minmax(groups.map(x=>x.pIn?((basis==='P'?x.pBins:x.fBins)[b]||0)/x.pIn:0))[1]);
+  let h=`<table class="heat"><thead><tr><th class="l">${$('fGroup').value==='lot'?'Lot':L('期間','Period')}</th><th>Input</th><th>First Y</th><th>Final Y</th>${bins.map(b=>`<th title="${esc(cfgOf(b).desc)}">${binName(b)}${isNR(b)?'◆':''}</th>`).join('')}</tr></thead><tbody>`;
+  groups.forEach(x=>{
+    const bb=basis==='P'?x.pBins:x.fBins;
+    h+=`<tr><td class="l" title="${esc(x.sub)}">${esc(x.label)}</td><td>${num(x.pIn)}</td><td>${pct(x.pIn?x.pGood/x.pIn:null)}</td><td>${pct(x.pIn?x.fGood/x.pIn:null)}</td>`;
+    bins.forEach(b=>{ const v=x.pIn?(bb[b]||0)/x.pIn:0; const c=seqColor(colMax[b]?v/colMax[b]:0);
+      const nv=x.lots.filter(l=>l.sbl.viol.some(q=>q.item===b&&q.basis===basis)).length;
+      h+=`<td class="${nv?'viol':''}" style="${c?`background:${c.bg};color:${c.fg}`:''}" title="${binName(b)}：${bb[b]||0} pcs${nv?`\n${L('SBL 違規','SBL violations:')} ${nv} lot`:''}">${nv?'▲':''}${v?(v*100).toFixed(2):''}</td>`; });
+    h+='</tr>';
+  });
+  $('heat').innerHTML=h+'</tbody></table>'+(nG>400?`<div class="muted" style="padding:6px 8px;font-size:12px">${L(`只顯示最近 400 列，共 ${nG} 列（可改用每日 / 每週）`,`Showing the latest 400 of ${nG} rows (try day / week)`)}</div>`:'');
+}
+
+/* --- Tester / Loadboard --- */
+function perfBy(lots,keyFn){
+  const m=new Map(); const get=(k)=>{ if(!m.has(k)) m.set(k,{name:k,lots:new Set(),holds:new Set(),pIn:0,pGood:0,oIn:0,oGood:0,fIn:0,fGood:0,pBins:{}}); return m.get(k); };
+  for(const l of lots){
+    for(const r of l.P){ const a=get(keyFn(r)); a.lots.add(l.key); if(l.sbl&&l.sbl.status==='HOLD') a.holds.add(l.key); a.pIn+=r.input; a.pGood+=r.good; addBins(a.pBins,r.bins); const sh=l.pIn?r.input/l.pIn:0; a.fIn+=r.input; a.fGood+=l.fGood*sh; }
+    for(const rd of l.rounds) for(const r of rd.rows){ const a=get(keyFn(r)); a.oIn+=r.input; a.oGood+=r.good; }
+  }
+  return [...m.values()].map(a=>({...a,nLots:a.lots.size,nHold:a.holds.size,fy:a.pIn?a.pGood/a.pIn:null,rec:a.oIn?a.oGood/a.oIn:null,fny:a.fIn?a.fGood/a.fIn:null}));
+}
+function renderPerf(lots){
+  const dim=S.perfDim; const kf=dim==='tester'?(r=>r.tester):dim==='lb'?(r=>r.lb):(r=>r.tester+' × '+r.lb);
+  const rows=perfBy(lots,kf);
+  const pIn=lots.reduce((a,l)=>a+l.pIn,0), pG=lots.reduce((a,l)=>a+l.pGood,0), fG=lots.reduce((a,l)=>a+l.fGood,0);
+  const avg=pIn?pG/pIn:null, favg=pIn?fG/pIn:null;
+  const tot=totals(lots).P;   // 全體 bin 加總只算一次
+  // 異常判定：First Yield 比平均低 > 2σ（以各群組 binomial 標準差）
+  rows.forEach(r=>{ r.delta=r.fy!=null&&avg!=null?r.fy-avg:null; const sd=r.pIn?Math.sqrt(avg*(1-avg)/r.pIn):0; r.bad=r.pIn>0&&r.delta<-Math.max(2*sd,0.002); r.good=r.pIn>0&&r.delta>Math.max(2*sd,0.002);
+    const fb=Object.keys(r.pBins).filter(b=>!isPass(b)&&r.pBins[b]>0&&binShown(b)).sort((a,b)=>r.pBins[b]-r.pBins[a]).slice(0,3); r.top=fb.map(b=>`${binName(b)} ${pct(r.pBins[b]/r.pIn,2)}`).join(', ');
+    // 與平均相比，哪個 bin 超出最多
+    let worst=null,wv=0; for(const b in r.pBins){ if(isPass(b)) continue; const d=r.pBins[b]/r.pIn-(tot[b]||0)/pIn; if(d>wv){wv=d;worst=b;} } r.worst=worst?`${binName(worst)} +${(wv*100).toFixed(2)}pp`:''; });
+  const sk=S.sort.perf; const getv=(r)=>sk.k==='name'?r.name:r[sk.k];
+  rows.sort((a,b)=>{ const x=getv(a),y=getv(b); return (typeof x==='string'?COLL.compare(x,y):(x??-1)-(y??-1))*sk.d; });
+  let items=rows.filter(r=>r.pIn>0); const nItems=items.length;
+  if(nItems>60){ const worst=new Set(items.slice().sort((a,b)=>a.fy-b.fy).slice(0,60)); items=items.filter(r=>worst.has(r)); }
+  const ser=[{name:'First Yield',color:cssv('--s1')},{name:'Final Yield',color:cssv('--s2')}];
+  $('perfLegend').innerHTML=`<span><i class="dot" style="background:${ser[0].color}"></i>First Yield</span><span><i class="dot" style="background:${ser[1].color}"></i>Final Yield</span><span>┆ ${L('虛線 = 平均 First Yield','dashed = average First Yield')} ${pct(avg)}</span><span style="color:var(--critical)">▼ = ${L('顯著低於平均','significantly below average')}</span>`+(nItems>60?`<span>${L(`（共 ${nItems} 項，圖中只畫 First Yield 最低的 60 項；完整見下表）`,`(${nItems} items; the chart shows the 60 with the lowest First Yield — see the table for all)`)}</span>`:'');
+  dotPlot($('cPerf'),{series:ser,ref:avg,fmt:(v,st)=>pctAxis(v,st),items:items.map(r=>({label:r.name,values:[r.fy,r.fny],valText:`${pct(r.fy)} → ${pct(r.fny)}`,flag:r.bad?'▼':'',
+    tip:`<div class="t">${esc(r.name)}</div><div class="r"><span>Lots</span><span>${r.nLots}</span></div><div class="r"><span>P Input</span><span>${num(r.pIn)}</span></div><div class="r"><span>First Yield</span><span>${pct(r.fy)} (${r.delta>=0?'+':''}${(r.delta*100).toFixed(2)}pp)</span></div><div class="r"><span>Final Yield</span><span>${pct(r.fny)}</span></div><div class="r"><span>Recovery</span><span>${pct(r.rec)}</span></div><div class="r"><span>SBL Hold</span><span>${r.nHold} / ${r.nLots} lots</span></div><div class="r"><span>${L('最高 fail','Top fails')}</span><span>${esc(r.top)}</span></div><div class="r"><span>${L('高於平均最多','Most above average')}</span><span>${esc(r.worst)}</span></div>`}))});
+  const cols=[['name',L('名稱','Name'),'l'],['nLots','Lots'],['nHold','SBL Hold'],['pIn','P Input'],['fy','First Yield'],['delta',L('Δ vs 平均','Δ vs avg')],['oIn',L('重測 Input','Retest Input')],['rec','Recovery'],['fny','Final Yield'],['top','Top fail bins','l'],['worst',L('比平均高最多','Most above average'),'l']];
+  let h=`<table><thead><tr>${cols.map(([k,t,c])=>`<th class="${c||''}" data-k="${k}">${t}${sk.k===k?(sk.d>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>`;
+  rows.slice(0,MAXROWS).forEach(r=>{ h+=`<tr><td class="l">${esc(r.name)}</td><td>${r.nLots}</td><td class="${r.nHold?'st-hold':''}">${r.nHold?r.nHold+' ('+(r.nHold/r.nLots*100).toFixed(0)+'%)':''}</td><td>${num(r.pIn)}</td><td>${pct(r.fy)}</td><td class="${r.bad?'st-bad':r.good?'st-good':''}">${r.delta==null?'–':(r.bad?'▼ ':r.good?'▲ ':'')+(r.delta>=0?'+':'')+(r.delta*100).toFixed(2)+'pp'}</td><td>${num(r.oIn)}</td><td>${pct(r.rec)}</td><td>${pct(r.fny)}</td><td class="l">${esc(r.top)}</td><td class="l">${esc(r.worst)}</td></tr>`; });
+  h+=`<tr style="font-weight:600"><td class="l">${L('全部','All')}</td><td>${lots.length}</td><td>${lots.filter(l=>l.sbl.status==='HOLD').length||''}</td><td>${num(pIn)}</td><td>${pct(avg)}</td><td></td><td>${num(lots.reduce((a,l)=>a+l.oIn,0))}</td><td>${pct((()=>{const i=lots.reduce((a,l)=>a+l.oIn,0);return i?lots.reduce((a,l)=>a+l.oGood,0)/i:null;})())}</td><td>${pct(favg)}</td><td></td><td></td></tr>`;
+  $('perfTable').innerHTML=h+'</tbody></table>'+capNote(rows.length,MAXROWS);
+  $('perfTable').querySelectorAll('th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; S.sort.perf=sk.k===k?{k,d:-sk.d}:{k,d:k==='name'?1:-1}; renderPerf(S.lotsF); });
+}
+function renderMatrix(lots){
+  const rows=perfBy(lots,r=>r.tester+'\u0000'+r.lb);
+  const ts=uniq(rows.map(r=>r.name.split('\u0000')[0])), ls=uniq(rows.map(r=>r.name.split('\u0000')[1]));
+  if(!rows.length){ $('matrix').innerHTML=`<div class="empty">${L('無資料','No data')}</div>`; return; }
+  const m=new Map(rows.map(r=>[r.name,r])); const losses=rows.filter(r=>r.fy!=null).map(r=>1-r.fy);
+  const [minLoss,maxLoss]=minmax(losses);
+  const lossF=(l)=>maxLoss>minLoss?0.08+0.92*(l-minLoss)/(maxLoss-minLoss):0.5;
+  let h=`<table class="heat"><thead><tr><th class="l">Tester \\ LB</th>${ls.map(l=>`<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>`;
+  ts.forEach(t=>{ h+=`<tr><td class="l">${esc(t)}</td>`; ls.forEach(l=>{ const r=m.get(t+'\u0000'+l); if(!r||!r.pIn){ h+='<td></td>'; return; } const c=seqColor(lossF(1-r.fy));
+    h+=`<td style="${c?`background:${c.bg};color:${c.fg}`:''}" title="${esc(t)} × ${esc(l)}\nLots ${r.nLots} · P Input ${r.pIn}\nFirst ${pct(r.fy)} · Final ${pct(r.fny)}">${pct(r.fy)}<div style="font-size:10.5px;opacity:.8">${r.nLots} lot</div></td>`; }); h+='</tr>'; });
+  $('matrix').innerHTML=h+'</tbody></table>';
+}
+function lotRows(lots){
+  return lots.map(l=>({date:l.t!=null?ymd(l.t):'',product:l.product,stage:l.stage,lot:l.lot,tester:l.testers.join('/'),lb:l.lbs.join('/'),
+    pIn:l.pIn,pGood:l.pGood,fy:l.fy,rounds:l.rounds.length,oIn:l.oIn,oGood:l.oGood,fGood:l.fGood,fny:l.fny,
+    nrLoss:Object.keys(l.fBins).filter(b=>b!=='NR'&&isNR(b)).reduce((a,b)=>a+l.fBins[b],0),notRt:l.fBins.NR||0,sbl:l.sbl.status,sblV:l.sbl.viol.map(v=>v.text+(v.pend?L('（待重測）',' (wait retest)'):'')).join(L('；','; ')),warn:l.warn.join(L('；','; ')),_l:l}));
+}
+const MAXROWS=1000;   // 表格最多畫幾列（排序仍以全部資料計；完整資料請匯出 CSV）
+const capNote=(n,shown)=>n>shown?`<div class="muted" style="padding:6px 8px;font-size:12px">${L(`只顯示前 ${shown.toLocaleString()} 列，共 ${n.toLocaleString()} 列 — 完整資料請用匯出 CSV`,`Showing the first ${shown.toLocaleString()} of ${n.toLocaleString()} rows — use Export CSV for everything`)}</div>`:'';
+function renderLotTable(lots){
+  const cols=[['sbl','SBL','l'],['date','Date','l'],['product','Product','l'],['stage','Stage','l'],['lot','Lot','l'],['tester','Tester','l'],['lb','Loadboard','l'],['pIn','P Input'],['pGood','P Good'],['fy','First Yield'],['rounds',L('重測次數','Retests')],['oIn',L('重測 Input','Retest Input')],['oGood',L('重測 Good','Retest Good')],['fGood','Final Good'],['fny','Final Yield'],['nrLoss',L('不可重測 fail','Non-retestable fail')],['notRt',L('未重測','Not retested')],['sblV',L('SBL 違規','SBL violations'),'l'],['warn',L('備註','Notes'),'l']];
+  const sk=S.sort.lot; const rows=lotRows(lots);
+  rows.sort((a,b)=>{ const x=a[sk.k],y=b[sk.k]; return (typeof x==='string'?COLL.compare(x,y):(x??-1)-(y??-1))*sk.d; });
+  let h=`<table><thead><tr>${cols.map(([k,t,c])=>`<th class="${c||''}" data-k="${k}">${t}${sk.k===k?(sk.d>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>`;
+  rows.slice(0,MAXROWS).forEach(r=>{ h+='<tr>'+cols.map(([k,,c])=>{ let v=r[k]; if(k==='sbl') return `<td class="l">${sblBadge(v)}</td>`; if(k==='fy'||k==='fny') v=pct(v); else if(typeof v==='number') v=num(v); return `<td class="${c||''}${k==='sblV'?' st-hold':''}">${esc(v)}</td>`; }).join('')+'</tr>'; });
+  $('lotTable').innerHTML=h+'</tbody></table>'+capNote(rows.length,MAXROWS);
+  $('lotTable').querySelectorAll('th').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; S.sort.lot=sk.k===k?{k,d:-sk.d}:{k,d:1}; renderLotTable(S.lotsF); });
+}
+function renderCfg(){
+  $('cfgSrc').textContent=trSrc(S.cfgSrc);
+  const bins=uniq([...S.allBins,...S.binCfg.keys()].filter(b=>b!=='NR')).sort(binSort);
+  const tot=totals(S.lotsF).P;
+  let h=`<table><thead><tr><th class="l">Bin</th><th class="l">Description</th><th>${L('良品 (Pass)','Good (Pass)')}</th><th>${L('不可重測','Non-retestable')}</th><th>${L('P 數量','P pcs')}</th></tr></thead><tbody>`;
+  bins.forEach(b=>{ const c=cfgOf(b); h+=`<tr><td class="l">${binName(b)}</td><td class="l"><input type="text" data-b="${b}" data-f="desc" value="${esc(c.desc)}" style="width:220px"></td><td style="text-align:center"><input type="checkbox" data-b="${b}" data-f="pass" ${c.pass?'checked':''}></td><td style="text-align:center"><input type="checkbox" data-b="${b}" data-f="nr" ${!c.retest&&!c.pass?'checked':''} ${c.pass?'disabled':''}></td><td>${num(tot[b]||0)}</td></tr>`; });
+  $('cfgTable').innerHTML=h+'</tbody></table>';
+  $('cfgTable').querySelectorAll('input').forEach(el=>el.addEventListener('change',()=>{
+    const b=el.dataset.b, c={...cfgOf(b)};
+    if(el.dataset.f==='desc') c.desc=el.value; else if(el.dataset.f==='pass') c.pass=el.checked; else c.retest=!el.checked;
+    S.binCfg.set(b,c); S.cfgSrc=S.cfgSrc.replace(/（已修改）$/,'')+'（已修改）'; saveCfg(); refreshAll(false);
+  }));
+}
+
+/* ========================= 匯出 ========================= */
+function download(name,text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+const csvCell=(v)=>{ v=String(v??''); return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+$('expLot').onclick=()=>{
+  const rows=lotRows(S.lotsF); const bins=S.allBins.filter(b=>!isPass(b));
+  const head=['Date','Product','Stage','Lot','Tester','Loadboard','P_Input','P_Good','First_Yield','Retest_Rounds','Retest_Input','Retest_Good','Final_Good','Final_Yield',...bins.map(b=>'P_'+binName(b)),...bins.map(b=>'Final_'+binName(b)),'Final_NotRetested','SBL','SBL_Violation','Note'];
+  const out=[head.join(',')];
+  rows.forEach(r=>{ const l=r._l; out.push([r.date,r.product,r.stage,r.lot,r.tester,r.lb,r.pIn,r.pGood,r.fy!=null?(r.fy*100).toFixed(3):'',r.rounds,r.oIn,r.oGood,r.fGood,r.fny!=null?(r.fny*100).toFixed(3):'',...bins.map(b=>l.pBins[b]||0),...bins.map(b=>l.fBins[b]||0),l.fBins.NR||0,r.sbl,r.sblV,r.warn].map(csvCell).join(',')); });
+  download('lot_yield_summary.csv',out.join('\r\n'));
+};
+$('cfgExp').onclick=()=>{
+  const bins=uniq([...S.allBins,...S.binCfg.keys()].filter(b=>b!=='NR')).sort(binSort);
+  download('bin_config.csv',['Bin,Description,Retestable,Pass',...bins.map(b=>{ const c=cfgOf(b); return [binName(b),c.desc,c.retest?'Y':'N',c.pass?'Y':'N'].map(csvCell).join(','); })].join('\r\n'));
+};
+$('cfgReset').onclick=()=>{ S.binCfg=defaultCfg(); S.cfgSrc='預設'; saveCfg(); if(S.rows.length) refreshAll(false); };
+$('cfgIn').onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; const t=parseCSV(decode(await f.arrayBuffer())); if(t.length<2){alert(L("檔案沒有資料","The file has no data"));return;} S.binCfg=parseBinCfg(t); S.cfgSrc=f.name; saveCfg(); e.target.value=''; if(S.rows.length) refreshAll(false); };
+
+$('sblIn').onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; e.target.value=''; const t=parseCSV(decode(await f.arrayBuffer())); if(t.length<2){alert(L("檔案沒有資料","The file has no data"));return;}
+  if(!isSBLHeader(t[0].map(norm))){ alert(L('找不到 SBL 欄位：需要 Bin 欄，以及 Max_Pct / Max_Qty / Min_Pct 其中之一','No SBL columns found: a Bin column and one of Max_Pct / Max_Qty / Min_Pct are needed')); return; }
+  const w=[]; S.sbl=parseSBL(t,f.name,w); S.sblSrc=f.name; saveSBL(); if(w.length) alert(w.join('\n')); if(S.rows.length) refreshAll(false); };
+$('sblClear').onclick=()=>{ if(!confirm(L('清除目前的 SBL limit？','Clear the current SBL limits?'))) return; S.sbl=[]; S.sblSrc=''; saveSBL(); if(S.rows.length) refreshAll(false); };
+$('sblOnlyHold').onchange=()=>renderSBL(S.lotsF);
+$('sblExp').onclick=()=>{
+  const list=S.lotsF.filter(l=>l.sbl.hold);
+  const out=[['Status','Date','Product','Stage','Lot','Tester','Loadboard','P_Input','First_Yield','Final_Yield','Item','Basis','Violation'].join(',')];
+  list.forEach(l=>l.sbl.viol.forEach(v=>out.push([l.sbl.status,l.t!=null?ymd(l.t):'',l.product,l.stage,l.lot,l.testers.join('/'),l.lbs.join('/'),l.pIn,l.fy!=null?(l.fy*100).toFixed(3):'',l.fny!=null?(l.fny*100).toFixed(3):'',itemName(v.item),v.basis==='F'?'Final':'P',v.text+(v.pend?L('（待重測）',' (wait retest)'):'')].map(csvCell).join(','))));
+  download('sbl_hold_list.csv',out.join('\r\n'));
+};
+
+/* ========================= 檔案 / 資料夾 ========================= */
+$('fileIn').onchange=(e)=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) ingest(fs,T('檔案','Files')); };
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{ e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{ e.preventDefault(); if(t==='drop'||e.target===drop) drop.classList.remove('over'); }));
+document.addEventListener('drop',e=>{ const fs=[...e.dataTransfer.files].filter(f=>/\.(csv|txt)$/i.test(f.name)); if(fs.length) ingest(fs,T('拖曳','Dropped')); });
+
+const idb=(mode,fn)=>new Promise((res,rej)=>{ const o=indexedDB.open('tsbl',1); o.onupgradeneeded=()=>o.result.createObjectStore('kv'); o.onsuccess=()=>{ const tx=o.result.transaction('kv',mode); const r=fn(tx.objectStore('kv')); tx.oncomplete=()=>res(r&&r.result); tx.onerror=()=>rej(tx.error); }; o.onerror=()=>rej(o.error); });
+async function readDir(force){
+  const h=S.dirHandle; if(!h) return;
+  const files=[];
+  for await (const [name,e] of h.entries()) if(e.kind==='file'&&/\.csv$/i.test(name)) files.push(await e.getFile());
+  files.sort((a,b)=>a.name.localeCompare(b.name));
+  const sig=files.map(f=>f.name+':'+f.size+':'+f.lastModified).join('|');
+  if(!force&&sig===S.dirSig) return;
+  S.dirSig=sig;
+  if(!files.length){ alert(L('資料夾內沒有 CSV','No CSV files in the folder')); return; }
+  await ingest(files,'📁 '+h.name+' '+new Date().toLocaleTimeString());
+}
+function dirUI(){ const on=!!S.dirHandle; $('reloadBtn').classList.toggle('hidden',!on); $('autoWrap').hidden=!on; }
+$('dirBtn').onclick=async()=>{
+  if(!window.showDirectoryPicker){ alert(L('此瀏覽器不支援資料夾讀取，請用 Chrome 或 Edge；或改用「讀取 CSV」選多個檔案。','This browser cannot read folders. Use Chrome or Edge, or pick several files with “Open CSV”.')); return; }
+  try{ S.dirHandle=await showDirectoryPicker({id:'tsbl',mode:'read'}); await idb('readwrite',s=>s.put(S.dirHandle,'dir')); dirUI(); S.dirSig=''; await readDir(true); }catch(e){ if(e.name!=='AbortError') alert(e.message); }
+};
+$('reloadBtn').onclick=async()=>{ try{ if(await S.dirHandle.queryPermission({mode:'read'})!=='granted') await S.dirHandle.requestPermission({mode:'read'}); await readDir(true); }catch(e){ alert(e.message); } };
+function setAuto(){ clearInterval(S.autoTimer); if($('autoChk').checked&&S.dirHandle){ const sec=Math.max(10,+$('autoSec').value||60); S.autoTimer=setInterval(()=>readDir(false).catch(()=>{}),sec*1000); } localStorage.setItem('tsbl.auto',JSON.stringify({on:$('autoChk').checked,sec:$('autoSec').value})); }
+$('autoChk').onchange=setAuto; $('autoSec').onchange=setAuto;
+async function restoreDir(){
+  try{ const a=JSON.parse(localStorage.getItem('tsbl.auto')||'{}'); $('autoChk').checked=!!a.on; if(a.sec) $('autoSec').value=a.sec; }catch(e){}
+  if(!window.indexedDB||!window.showDirectoryPicker) return;
+  try{ const h=await idb('readonly',s=>s.get('dir')); if(!h) return; S.dirHandle=h; dirUI();
+    if(await h.queryPermission({mode:'read'})==='granted'){ await readDir(true); setAuto(); }
+    else{ $('reloadBtn').textContent=L('⟳ 重新連線 ','⟳ Reconnect ')+h.name; $('reloadBtn').onclick=async()=>{ try{ if(await h.requestPermission({mode:'read'})==='granted'){ $('reloadBtn').textContent=L('⟳ 重新讀取','⟳ Reload'); $('reloadBtn').onclick=()=>readDir(true); await readDir(true); setAuto(); } }catch(e){ alert(e.message); } }; }
+  }catch(e){}
+}
+
+/* ========================= 其他控制 ========================= */
+$('fGroup').addEventListener('change',()=>{ const u=$('fGroup').value; for(const c of ['y','b']){ S.cv[c].u=u; if(u==='lot'&&S.cv[c].t==='box') S.cv[c].t='line'; } });   // 篩選區的 Trend 單位 = 一次設定全部趨勢圖
+['fFrom','fTo','fGroup','fBasis'].forEach(id=>$(id).addEventListener('change',()=>{ hideTip(); renderFilterSummary(); render(); }));
+let lotQT; $('fLot').addEventListener('input',()=>{ clearTimeout(lotQT); lotQT=setTimeout(()=>{ renderFilterSummary(); render(); },300); });
+/* 每個區塊可收合（點標題），狀態記在瀏覽器 */
+const COLLAPSED=new Set(JSON.parse(localStorage.getItem('tsbl.collapsed')||'[]'));
+document.querySelectorAll('#app .card').forEach((c,i)=>{
+  const h=c.querySelector(':scope>h2'); if(!h) return;
+  const key=c.dataset.collapse||(c.dataset.collapse=h.dataset.collapseKey||h.childNodes[0].textContent.trim()||'card'+i);
+  if(COLLAPSED.has(key)) c.classList.add('collapsed');
+  h.title=L('點一下收合 / 展開','Click to collapse / expand');
+  h.addEventListener('click',e=>{ if(e.target.closest('a,button,input')) return;
+    c.classList.toggle('collapsed'); if(c.classList.contains('collapsed')) COLLAPSED.add(key); else COLLAPSED.delete(key);
+    localStorage.setItem('tsbl.collapsed',JSON.stringify([...COLLAPSED]));
+    if(c.id==='filterCard') applyLayout();   // sidebar 寬度改變 → 重排 + 重畫
+    else if(!c.classList.contains('collapsed')&&S.rows.length) render();   // 展開後依實際寬度重畫圖
+  });
+});
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); S.perfDim=b.dataset.dim; S.sort.perf={k:'name',d:1}; renderPerf(S.lotsF); });
+$('sampleBtn').onclick=()=>{ const s=makeSampleCSV(); const mk=(n,t)=>new File([t],n,{type:'text/csv'}); S.dirHandle=null; dirUI(); clearInterval(S.autoTimer); ingest([mk('sample_test_summary.csv',s.summary),mk('sample_bin_config.csv',s.bincfg),mk('sample_sbl_limit.csv',s.sbl)],T('範例','Sample')); };
+$('clearBtn').onclick=()=>{ S.f={}; S.rows=[]; S.lots=[]; S.files=[]; S.warnLoad=[]; S.dirHandle=null; S.dirSig=''; clearInterval(S.autoTimer); idb('readwrite',s=>s.delete('dir')).catch(()=>{}); dirUI(); $('app').classList.add('hidden'); $('dropCard').classList.remove('hidden'); $('srcInfo').textContent=''; };
+function themeIcon(){ const d=(document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'; $('themeBtn').textContent=d?'☀️':'🌙'; $('themeBtn').title=d?'切換為淺色 · Light mode':'切換為深色 · Dark mode'; }
+$('themeBtn').onclick=()=>{ const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); document.documentElement.dataset.theme=cur==='dark'?'light':'dark'; localStorage.setItem('tsbl.theme',document.documentElement.dataset.theme); themeIcon(); if(S.rows.length&&!document.body.classList.contains('docs-on')) render(); };
+(()=>{ const t=localStorage.getItem('tsbl.theme'); if(t) document.documentElement.dataset.theme=t; themeIcon(); })();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeIcon);
+
+/* ========================= 放大檢視 ⛶ ========================= */
+function zoomOff(){ const z=document.querySelector('.zoomed'); if(!z) return; z.classList.remove('zoomed'); $('zoomBack').hidden=true; document.body.classList.remove('zooming');
+  const b=z.querySelector('.zbtn'); b.textContent='⛶'; b.title=L('放大檢視','Zoom in'); hideTip(); if(z.classList.contains('card')&&S.rows.length) render(); }
+function zoomOn(el){ zoomOff(); if(el.classList.contains('collapsed')) el.classList.remove('collapsed');
+  el.classList.add('zoomed'); $('zoomBack').hidden=false; document.body.classList.add('zooming');
+  const b=el.querySelector('.zbtn'); b.textContent='✕'; b.title=L('關閉放大（Esc）','Close zoom (Esc)'); hideTip(); if(el.classList.contains('card')&&S.rows.length) render(); }
+function addZoom(el,host){ const b=document.createElement('button'); b.className='zbtn'; b.type='button'; b.textContent='⛶'; b.title=L('放大檢視','Zoom in'); b.setAttribute('aria-label','zoom');
+  b.addEventListener('click',e=>{ e.stopPropagation(); el.classList.contains('zoomed')?zoomOff():zoomOn(el); }); host.appendChild(b); }
+document.querySelectorAll('#app .card').forEach(c=>{ if(c.querySelector('.chart,#heat,#matrix')) addZoom(c,c.querySelector(':scope>h2')); });
+$('zoomBack').addEventListener('click',zoomOff);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.querySelector('.zoomed')) zoomOff(); });
+/* ========================= 說明頁 README（內建流程圖，離線可用） ========================= */
+/* 節點：[id, cx, cy, 中文, English, 種類]；種類 io=輸入 dec=判斷 ok=正常 bad=HOLD/警告 warn=待定；\n 換行
+   連線：[from, to, 中文標籤, English 標籤, {via:[[x,y]…], lp:標籤位置 0–1}] */
+const FLOWS={
+  data:{w:940,h:960,n:[
+    ['A1',170,40,'📄 CSV 檔','📄 CSV files','io'],
+    ['A2',470,40,'📁 資料夾\n（自動更新）','📁 Folder\n(auto refresh)','io'],
+    ['A3',770,40,'拖曳檔案','Drag & drop','io'],
+    ['B',470,150,'依欄位判斷\n檔案類型','Detect file type\nby columns','dec'],
+    ['C1',170,265,'Test summary 資料列','Test summary rows','io'],
+    ['C2',470,265,'Bin 設定','Bin config','io'],
+    ['C3',770,265,'SBL limit','SBL limits','io'],
+    ['D',320,370,'依 lot 分組\nProduct + Stage + Lot','Group rows into lots\nProduct + Stage + Lot'],
+    ['E',320,480,'每個 lot：\n重測分輪\nFirst / Final Yield\nFinal bin','Per lot:\nsplit retest rounds\nFirst / Final Yield\nFinal bins'],
+    ['F',470,600,'SBL 判定\nHOLD / PASS','SBL check\nHOLD / PASS','dec'],
+    ['G',470,710,'多選篩選\nProduct · Stage · Tester · LB\nBin · SBL · 日期 · Lot','Filters (multi-select)\nProduct · Stage · Tester · LB\nBin · SBL status · Date · Lot'],
+    ['V1',100,830,'KPI','KPI tiles','',150],
+    ['V2',285,830,'Yield / Bin trend','Yield & Bin trend','',150],
+    ['V3',470,830,'Pareto / 熱圖','Pareto & heatmap','',150],
+    ['V4',655,830,'Tester / LB\nperformance','Tester / LB\nperformance','',150],
+    ['V5',840,830,'Hold 清單\nLot 明細','Hold list\n& lot table','',150],
+    ['X',840,925,'匯出 CSV','Export CSV','ok',150]],
+   e:[['A1','B'],['A2','B'],['A3','B'],
+    ['B','C1','HBn + TestMode','HBn + TestMode'],['B','C2','Bin + Retestable / Pass','Bin + Retestable / Pass',{lp:.55}],['B','C3','Bin + Max_Pct / Min_Pct','Bin + Max_Pct / Min_Pct'],
+    ['C1','D'],['C2','D'],['D','E'],['E','F'],['C3','F','','',{via:[[770,600]]}],['F','G'],
+    ['G','V1'],['G','V2'],['G','V3'],['G','V4'],['G','V5'],['V5','X']]},
+
+  yield:{w:960,h:790,n:[
+    ['P',230,40,'該 lot 的 P 資料列\n（多筆則加總）','P rows of the lot\n(sum if several)','io'],
+    ['PI',230,145,'P Input = Σ bin\nP 良品 = Σ 良品 bin','P Input = Σ bins\nP Good = Σ pass bins'],
+    ['FY',100,265,'First Yield =\nP 良品 ÷ P Input','First Yield =\nP Good ÷ P Input','ok',180],
+    ['RF',330,265,'可重測 fail\n= 非 HB8/9/11 的 fail bin','Retestable fails\n= fail bins that are\nnot HB8/9/11'],
+    ['O',700,145,'該 lot 的 O 資料列','O rows of the lot','io'],
+    ['SR',520,370,'重測分輪\n（見 4.3）','Split into retest rounds\n(see 4.3)'],
+    ['OG',330,480,'重測良品 =\n各輪良品 bin 加總','Retest Good = Σ pass\nbins of all rounds'],
+    ['FG',330,580,'Final 良品 =\nP 良品 + 重測良品','Final Good =\nP Good + Retest Good'],
+    ['FNY',330,680,'Final Yield =\nFinal 良品 ÷ P Input','Final Yield =\nFinal Good ÷ P Input','ok'],
+    ['FB',720,480,'Final bin =\n每次測試的不可重測 bin\n+ 最後一輪的 fail bin','Final bins =\nnon-retestable bins of every test\n+ fail bins of the LAST round'],
+    ['NR',720,600,'Final 良品 + Final fail\n= P Input ?','Final Good + Final fails\n= P Input ?','dec'],
+    ['NRB',560,725,'差額 → bin NR\n（未重測）','Remainder → bin NR\n(not retested)','warn',160],
+    ['W',740,725,'⚠ 警告：\n重測資料重複？','⚠ warning:\nduplicate retest data?','bad',170],
+    ['OK',900,725,'✓ 數量平衡','✓ balanced','ok',110]],
+   e:[['P','PI'],['PI','FY'],['PI','RF'],['RF','SR'],['O','SR'],['SR','OG'],['OG','FG'],['FG','FNY'],['SR','FB'],['FB','NR'],
+    ['NR','NRB','較少','less'],['NR','W','較多','more',{lp:.6}],['NR','OK','相等','equal']]},
+
+  rounds:{w:860,h:790,n:[
+    ['S',320,40,'某 lot 的所有 O 資料列','All O rows of one lot','io'],
+    ['Q1',320,145,'每一列都有編號？\nO1, O2, O3 …','Every row numbered?\nO1, O2, O3 …','dec'],
+    ['N',680,145,'輪次 = 編號\n（同編號合併）','Round = the number\n(same number → merged)','ok'],
+    ['SORT',320,255,'依時間排序，\n再依 Input（大到小）','Sort by time,\nthen by Input (largest first)'],
+    ['LOOP',320,360,'取下一列','Take next row'],
+    ['Q2',320,475,'時間較晚 且\nInput = 本輪可重測 fail ？','Later time AND\nInput = retestable fails\nof current round?','dec',290],
+    ['NEW',680,475,'開始新的一輪','Start a new round'],
+    ['EXP',680,360,'下一輪預期數量\n= 本輪可重測 fail','Expected qty for next round\n= retestable fails of this round'],
+    ['Q3',320,610,'本輪 Input + 此列 Input\n≤ 預期重測數量？','Current round Input + row Input\n≤ expected retest qty?','dec',300],
+    ['SAME',320,730,'同一輪\n（重測分到多台機台）','Same round\n(retest split over testers)','ok']],
+   e:[['S','Q1'],['Q1','N','是','Yes'],['Q1','SORT','否','No'],['SORT','LOOP'],['LOOP','Q2'],
+    ['Q2','NEW','是','Yes'],['Q2','Q3','否','No'],['Q3','SAME','是','Yes'],['Q3','NEW','否','No',{via:[[680,610]],lp:.3}],
+    ['NEW','EXP'],['EXP','LOOP'],['SAME','LOOP','','',{via:[[70,730],[70,360]]}]]},
+
+  sbl:{w:1000,h:1090,n:[
+    ['L',480,40,'Lot\n（Product, Stage）','Lot\n(Product, Stage)','io'],
+    ['R',480,150,'找出符合的 SBL 規則\n最精確者優先：\nProduct+Stage › Product › Stage › *','Find matching SBL rules\nmost specific wins:\nProduct+Stage › Product › Stage › *'],
+    ['NONE',480,265,'有規則？','Any rule?','dec'],
+    ['NA',800,265,'– 無 limit','– no limit','',140],
+    ['EACH',480,360,'逐條規則檢查','For each rule'],
+    ['T',480,455,'項目類型','Item type','dec'],
+    ['BP',170,565,'% = P bin 數 ÷ P Input','% = P bin count ÷ P Input','',210],
+    ['BF',480,565,'% = Final bin 數 ÷ P Input','% = Final bin count ÷ P Input','',230],
+    ['Y',800,565,'良率 vs Min_Pct','Yield vs Min_Pct','',180],
+    ['C1',320,680,'% > Max_Pct\n或 顆數 > Max_Qty ？','% > Max_Pct\nor pcs > Max_Qty ?','dec',220],
+    ['C2',800,680,'良率 < Min_Pct ？','Yield < Min_Pct ?','dec',200],
+    ['V',320,800,'違規\n例：HB5 1.59% > 1.4%','Violation\ne.g. HB5 1.59% > 1.4%','bad'],
+    ['P1',800,800,'OK','OK','ok',120],
+    ['PEND',320,915,'只有 Final 基準違規\n且 lot 尚未重測？','Only Final-basis violations\nand lot not retested yet?','dec',270],
+    ['W',150,1040,'◐ 待重測','◐ wait for retest','warn',170],
+    ['H',490,1040,'● HOLD','● HOLD','bad',150],
+    ['ALL',800,915,'所有規則都 OK？','All rules OK?','dec',200],
+    ['PASS',800,1040,'✓ PASS','✓ PASS','ok',130]],
+   e:[['L','R'],['R','NONE'],['NONE','NA','否','No'],['NONE','EACH','是','Yes'],['EACH','T'],
+    ['T','BP','HBn，Basis P','HBn, Basis P',{lp:.45}],['T','BF','HBn，Basis Final','HBn, Basis Final'],['T','Y','FIRST / FINAL_YIELD','FIRST / FINAL_YIELD',{lp:.55}],
+    ['BP','C1'],['BF','C1'],['Y','C2'],
+    ['C1','V','是','Yes'],['C2','V','是','Yes',{lp:.2}],['C1','P1','否','No',{lp:.2}],['C2','P1','否','No'],
+    ['V','PEND'],['PEND','W','是','Yes'],['PEND','H','否','No'],['P1','ALL'],['ALL','PASS','是','Yes']]}
+};
+const SEQD={w:940,actors:[['U',150,'工程師','Engineer'],['H',480,'test_summary_trend.html','test_summary_trend.html'],['F',810,'CSV 資料夾','CSV folder']],
+  steps:[
+    ['m','U','H','📁 選擇資料夾（只需第一次）','📁 Pick folder (first time only)'],
+    ['m','H','F','讀取所有 *.csv','read all *.csv'],
+    ['r','H','U','圖表、KPI、Hold 清單','charts, KPI, hold list'],
+    ['note','H','資料夾權限記在瀏覽器','folder handle saved in browser'],
+    ['loop','每 N 秒（若有開啟）','every N seconds (if enabled)'],
+      ['m','H','F','檢查檔名 / 大小 / 日期','check file names / sizes / dates'],
+      ['alt','有變動','something changed'],
+        ['m','H','F','重新讀取所有 CSV','re-read all CSV'],
+        ['r','H','U','全部更新','refresh everything'],
+      ['else','沒有變動','no change'],
+        ['self','H','不做事','do nothing'],
+      ['end'],
+    ['end']]};
+
+const XE=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const tw=(s,px)=>{ let w=0; for(const ch of s){ const c=ch.codePointAt(0); w+= c>0x2e80 ? (c>0x1f000?1.15:1.05)*px : (/[A-Z%@#&mwMW]/.test(ch)?.68:.55)*px; } return w; };
+/* 中英兩組文字疊在同一位置，CSS 依語言隱藏其中一組 */
+function svgLines(x,y,zh,en,px,cls){
+  const one=(s,l)=>{ const L=s.split('\n'), y0=y-(L.length-1)*px*0.62;
+    return `<text class="${l} ${cls}" x="${x}" y="${y0}" text-anchor="middle" dominant-baseline="central" font-size="${px}">`+L.map((t,i)=>`<tspan x="${x}" ${i?`dy="${px*1.24}"`:''}>${XE(t)}</tspan>`).join('')+'</text>'; };
+  return one(zh,'zh')+one(en,'en');
+}
+function flowSVG(key){
+  const f=FLOWS[key], N={}; let nodes='', edges='', labels='';
+  for(const [id,x,y,zh,en,k='',w0] of f.n){
+    const L=Math.max(zh.split('\n').length,en.split('\n').length);
+    const wt=Math.max(...[...zh.split('\n'),...en.split('\n')].map(s=>tw(s,12.5)))+(k==='dec'?44:26);
+    const w=Math.max(w0||0,wt,110), h=L*15.5+18; N[id]={x,y,w,h};
+    const x0=x-w/2, y0=y-h/2;
+    nodes+=`<g class="fn fn-${k||'step'}">`+(k==='dec'
+      ? `<polygon points="${x0},${y} ${x0+14},${y0} ${x0+w-14},${y0} ${x0+w},${y} ${x0+w-14},${y0+h} ${x0+14},${y0+h}"/>`
+      : `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="${k==='io'?14:6}"/>`)+svgLines(x,y,zh,en,12.5,'')+'</g>';
+  }
+  const clip=(n,px,py)=>{ const dx=px-n.x, dy=py-n.y; if(!dx&&!dy) return [n.x,n.y];
+    const s=Math.min(dx?(n.w/2+2)/Math.abs(dx):1e9, dy?(n.h/2+2)/Math.abs(dy):1e9); return [n.x+dx*s,n.y+dy*s]; };
+  for(const [a,b,zh='',en='',o={}] of f.e){
+    const A=N[a], B=N[b], via=o.via||[];
+    const p=[clip(A,...(via[0]||[B.x,B.y])),...via,clip(B,...(via.length?via[via.length-1]:[A.x,A.y]))];
+    edges+=`<path class="fe" d="M${p.map(q=>q.map(v=>v.toFixed(1)).join(',')).join(' L')}" marker-end="url(#fa-${key})"/>`;
+    if(zh||en){ // 標籤放在折線全長的 lp 位置
+      const seg=[]; let tot=0; for(let i=1;i<p.length;i++){ const d=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]); seg.push(d); tot+=d; }
+      let t=(o.lp??.5)*tot, i=0; while(i<seg.length-1&&t>seg[i]){ t-=seg[i]; i++; }
+      const r=seg[i]?t/seg[i]:0, lx=p[i][0]+(p[i+1][0]-p[i][0])*r, ly=p[i][1]+(p[i+1][1]-p[i][1])*r;
+      for(const [s,l] of [[zh,'zh'],[en,'en']]){ const w=tw(s,11.5)+12;
+        labels+=`<g class="${l}"><rect class="fl-bg" x="${lx-w/2}" y="${ly-10}" width="${w}" height="20" rx="10"/><text class="fl" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="11.5">${XE(s)}</text></g>`; }
+    }
+  }
+  return `<svg viewBox="0 0 ${f.w} ${f.h}" role="img" aria-label="${key} flowchart" style="max-width:${f.w}px">
+<defs><marker id="fa-${key}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fa"/></marker></defs>${edges}${nodes}${labels}</svg>`;
+}
+function seqSVG(){
+  const s=SEQD, X={}; s.actors.forEach(a=>X[a[0]]=a[1]);
+  let y=78, body='', boxes=[], stack=[];
+  const arrow=(a,b,y,dash)=>`<path class="fe${dash?' fe-r':''}" d="M${X[a]+(X[b]>X[a]?6:-6)},${y} L${X[b]+(X[b]>X[a]?-8:8)},${y}" marker-end="url(#fa-seq)"/>`;
+  for(const st of s.steps){
+    const [k]=st;
+    if(k==='m'||k==='r'){ const [,a,b,zh,en]=st; body+=svgLines((X[a]+X[b])/2,y-11,zh,en,12,'sq-t')+arrow(a,b,y,k==='r'); y+=50; }
+    else if(k==='self'){ const [,a,zh,en]=st; body+=`<path class="fe fe-r" d="M${X[a]+6},${y-10} h46 v22 h-40" marker-end="url(#fa-seq)"/>`+svgLines(X[a]+120,y+1,zh,en,12,'sq-t'); y+=48; }
+    else if(k==='note'){ const [,a,zh,en]=st, w=Math.max(tw(zh,12),tw(en,12))+28; body+=`<rect class="sq-note" x="${X[a]-w/2}" y="${y-16}" width="${w}" height="28" rx="4"/>`+svgLines(X[a],y-2,zh,en,12,''); y+=50; }
+    else if(k==='loop'||k==='alt'){ stack.push({k,y0:y-8,zh:st[1],en:st[2],depth:stack.length,elses:[]}); y+=40; }
+    else if(k==='else'){ stack[stack.length-1].elses.push({y:y-4,zh:st[1],en:st[2]}); y+=36; }
+    else if(k==='end'){ const b=stack.pop(); b.y1=y-14; boxes.push(b); y+=12; }
+  }
+  const H=y+44, x0=40, x1=s.w-40;
+  let frame='';
+  for(const b of boxes){ const pad=b.depth*22, l=x0+pad, r=x1-pad, tag=b.k==='loop'?'loop':'alt';
+    frame+=`<rect class="sq-box" x="${l}" y="${b.y0}" width="${r-l}" height="${b.y1-b.y0}" rx="6"/>`+
+      `<rect class="sq-tag" x="${l}" y="${b.y0}" width="42" height="20" rx="6"/><text class="fl" x="${l+21}" y="${b.y0+10}" text-anchor="middle" dominant-baseline="central" font-size="11.5">${tag}</text>`+
+      `<text class="zh fl" x="${l+52}" y="${b.y0+10}" dominant-baseline="central" font-size="11.5">[${XE(b.zh)}]</text><text class="en fl" x="${l+52}" y="${b.y0+10}" dominant-baseline="central" font-size="11.5">[${XE(b.en)}]</text>`;
+    for(const e of b.elses) frame+=`<path class="sq-div" d="M${l},${e.y} H${r}"/><text class="zh fl" x="${l+10}" y="${e.y+13}" dominant-baseline="central" font-size="11.5">else [${XE(e.zh)}]</text><text class="en fl" x="${l+10}" y="${e.y+13}" dominant-baseline="central" font-size="11.5">else [${XE(e.en)}]</text>`;
+  }
+  let heads='';
+  for(const [id,x,zh,en] of s.actors){ const w=Math.max(tw(zh,12.5),tw(en,12.5))+30;
+    heads+=`<path class="sq-life" d="M${x},46 V${H-38}"/>`;
+    for(const yy of [22,H-22]) heads+=`<g class="fn fn-io"><rect x="${x-w/2}" y="${yy-16}" width="${w}" height="32" rx="14"/>${svgLines(x,yy,(id==='U'?'👤 ':'')+zh,(id==='U'?'👤 ':'')+en,12.5,'')}</g>`; }
+  return `<svg viewBox="0 0 ${s.w} ${H}" role="img" aria-label="folder auto-refresh sequence" style="max-width:${s.w}px">
+<defs><marker id="fa-seq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fa"/></marker></defs>${frame}${heads}${body}</svg>`;
+}
+function renderDocs(){
+  document.querySelectorAll('#docs figure.flow').forEach(fg=>{ fg.innerHTML=fg.dataset.flow==='seq'?seqSVG():flowSVG(fg.dataset.flow); addZoom(fg,fg); });
+  document.querySelectorAll('#docs figure.shot img').forEach(im=>im.addEventListener('error',()=>im.closest('figure').remove(),{once:true}));
+}
+function showDocs(on){
+  zoomOff();
+  document.body.classList.toggle('docs-on',on);
+  $('docsBtn').classList.toggle('on',on);
+  if(on&&!$('docs').dataset.ready){ renderDocs(); $('docs').dataset.ready=1; }
+  scrollTo(0,0);
+  if(!on&&S.rows.length) render();
+}
+$('docsBtn').onclick=()=>showDocs(!document.body.classList.contains('docs-on'));
+$('dropDocs').onclick=e=>{ e.preventDefault(); showDocs(true); };
+$('docs').addEventListener('click',e=>{ const a=e.target.closest('a[href^="#d"]'); if(!a) return;
+  e.preventDefault(); const t=$(a.getAttribute('href').slice(1)); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); });
+['sampleBtn','clearBtn','fileIn','dirBtn'].forEach(id=>$(id).addEventListener(id==='fileIn'?'change':'click',()=>{ if(document.body.classList.contains('docs-on')) showDocs(false); }));
+/* 語言（說明頁與上方工具列）：中文 / English */
+function setLang(l){ document.documentElement.dataset.lang=l; document.documentElement.lang=l==='en'?'en':'zh-Hant'; localStorage.setItem('tsbl.lang',l);
+  const en=l==='en';
+  document.querySelectorAll('[data-en]').forEach(e=>{ if(e.dataset.zh==null) e.dataset.zh=e.textContent; e.textContent=en?e.dataset.en:e.dataset.zh; });
+  for(const a of ['title','placeholder']) document.querySelectorAll(`[data-en-${a}]`).forEach(e=>{ const k='zh'+a; if(e.dataset[k]==null) e.dataset[k]=e.getAttribute(a)||''; e.setAttribute(a,en?e.dataset['en'+a[0].toUpperCase()+a.slice(1)]:e.dataset[k]); });
+  document.querySelectorAll('#app .card>h2').forEach(h=>h.title=L('點一下收合 / 展開','Click to collapse / expand'));
+  document.querySelectorAll('.zbtn').forEach(b=>b.title=b.closest('.zoomed')?L('關閉放大（Esc）','Close zoom (Esc)'):L('放大檢視','Zoom in'));
+  if(S.dirHandle&&!$('reloadBtn').classList.contains('hidden')&&/重新讀取|Reload/.test($('reloadBtn').textContent)) $('reloadBtn').textContent=L('⟳ 重新讀取','⟳ Reload');
+  if(S.rows.length){ srcInfo(); renderFilterGroups(); if(!document.body.classList.contains('docs-on')){ hideTip(); render(); } }
+}
+$('langBtn').onclick=()=>setLang(document.documentElement.dataset.lang==='en'?'zh':'en');
+setLang(localStorage.getItem('tsbl.lang')||'zh');
+let rz; addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ document.documentElement.style.setProperty('--hdr',document.querySelector('header').offsetHeight+'px'); if(S.rows.length) render(); },150); });
+loadCfg(); loadSBL(); applyLayout(); restoreDir();
+</script>
+</body>
+</html>

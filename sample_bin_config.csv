@@ -1,0 +1,13 @@
+﻿Bin,Description,Retestable,Pass
+HB1,Pass,Y,Y
+HB2,Leakage,Y,N
+HB3,IDDQ,Y,N
+HB4,Function,Y,N
+HB5,Scan,Y,N
+HB6,AC Timing,Y,N
+HB7,DC Param,Y,N
+HB8,Open/Short,N,N
+HB9,Continuity,N,N
+HB10,Vmin,Y,N
+HB11,Burn/Damage,N,N
+HB12,Other,Y,N

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Summary Tool – Flowcharts</title>
+<style>
+:root{color-scheme:light;--page:#f9f9f7;--card:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--border:rgba(11,11,11,.1);--accent:#2a78d6}
+:root[data-theme=dark]{color-scheme:dark;--page:#0d0d0d;--card:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--border:rgba(255,255,255,.1);--accent:#3987e5}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 system-ui,"Segoe UI","Microsoft JhengHei",sans-serif}
+header{padding:14px 22px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1} a{color:var(--accent)}
+main{max-width:1200px;margin:0 auto;padding:16px 22px 60px}
+.toc{color:var(--ink2);margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 10px}
+pre.mermaid{text-align:center;background:none;margin:0}
+pre.src{background:var(--page);padding:10px;border-radius:6px;overflow:auto;font-size:12px}
+details summary{cursor:pointer;color:var(--ink2);margin-top:8px}
+button{font:inherit;background:var(--page);color:var(--ink);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer}
+#offline{display:none;background:#fab219;color:#0b0b0b;padding:8px 12px;border-radius:8px;margin-bottom:12px}
+</style></head><body>
+<header><h1>Test Summary Yield / Bin Trend / SBL – How it works</h1>
+<a href="README.md">README</a> <a href="test_summary_trend.html">Open the tool</a> <button id="theme">◐ Theme</button></header>
+<main>
+<div id="offline">⚠ Could not load Mermaid (no internet). The diagram source is shown instead — it is the same as in README.md.</div>
+<div class="toc"><a href="#d1">4.1 Overall data flow</a> · <a href="#d2">4.2 Yield calculation for one lot</a> · <a href="#d3">4.3 Splitting retest (O) rows into rounds</a> · <a href="#d4">4.4 SBL HOLD decision</a> · <a href="#d5">4.5 Folder auto-refresh</a></div>
+<section class="card" id="d1"><h2>4.1 Overall data flow</h2><pre class="mermaid">flowchart TB
+    subgraph IN[&quot;Input&quot;]
+        A1[&quot;📄 CSV files&quot;]
+        A2[&quot;📁 Folder&lt;br/&gt;(auto refresh)&quot;]
+        A3[&quot;Drag &amp; drop&quot;]
+    end
+    A1 &amp; A2 &amp; A3 --&gt; B{&quot;Detect file type&lt;br/&gt;by columns&quot;}
+    B --&gt;|&quot;HBn + TestMode&quot;| C1[&quot;Test summary rows&quot;]
+    B --&gt;|&quot;Bin + Retestable / Pass&quot;| C2[&quot;Bin config&quot;]
+    B --&gt;|&quot;Bin + Max_Pct / Min_Pct&quot;| C3[&quot;SBL limits&quot;]
+    C1 --&gt; D[&quot;Group rows into lots&lt;br/&gt;Product + Stage + Lot&quot;]
+    C2 --&gt; D
+    D --&gt; E[&quot;Per lot:&lt;br/&gt;split retest rounds&lt;br/&gt;First / Final Yield&lt;br/&gt;Final bins&quot;]
+    E --&gt; F[&quot;SBL check&lt;br/&gt;HOLD / PASS&quot;]
+    C3 --&gt; F
+    F --&gt; G[&quot;Filters (multi-select)&lt;br/&gt;Product · Stage · Tester · LB&lt;br/&gt;Bin · SBL status · Date · Lot&quot;]
+    G --&gt; V1[&quot;KPI tiles&quot;]
+    G --&gt; V2[&quot;Yield &amp; Bin trend&quot;]
+    G --&gt; V3[&quot;Pareto &amp; heatmap&quot;]
+    G --&gt; V4[&quot;Tester / LB performance&quot;]
+    G --&gt; V5[&quot;Hold list &amp; lot table&quot;]
+    V5 --&gt; X[&quot;Export CSV&quot;]</pre><details><summary>Mermaid source</summary><pre class="src">flowchart TB
+    subgraph IN[&quot;Input&quot;]
+        A1[&quot;📄 CSV files&quot;]
+        A2[&quot;📁 Folder&lt;br/&gt;(auto refresh)&quot;]
+        A3[&quot;Drag &amp; drop&quot;]
+    end
+    A1 &amp; A2 &amp; A3 --&gt; B{&quot;Detect file type&lt;br/&gt;by columns&quot;}
+    B --&gt;|&quot;HBn + TestMode&quot;| C1[&quot;Test summary rows&quot;]
+    B --&gt;|&quot;Bin + Retestable / Pass&quot;| C2[&quot;Bin config&quot;]
+    B --&gt;|&quot;Bin + Max_Pct / Min_Pct&quot;| C3[&quot;SBL limits&quot;]
+    C1 --&gt; D[&quot;Group rows into lots&lt;br/&gt;Product + Stage + Lot&quot;]
+    C2 --&gt; D
+    D --&gt; E[&quot;Per lot:&lt;br/&gt;split retest rounds&lt;br/&gt;First / Final Yield&lt;br/&gt;Final bins&quot;]
+    E --&gt; F[&quot;SBL check&lt;br/&gt;HOLD / PASS&quot;]
+    C3 --&gt; F
+    F --&gt; G[&quot;Filters (multi-select)&lt;br/&gt;Product · Stage · Tester · LB&lt;br/&gt;Bin · SBL status · Date · Lot&quot;]
+    G --&gt; V1[&quot;KPI tiles&quot;]
+    G --&gt; V2[&quot;Yield &amp; Bin trend&quot;]
+    G --&gt; V3[&quot;Pareto &amp; heatmap&quot;]
+    G --&gt; V4[&quot;Tester / LB performance&quot;]
+    G --&gt; V5[&quot;Hold list &amp; lot table&quot;]
+    V5 --&gt; X[&quot;Export CSV&quot;]</pre></details></section>
+<section class="card" id="d2"><h2>4.2 Yield calculation for one lot</h2><pre class="mermaid">flowchart TD
+    P[&quot;P rows of the lot&lt;br/&gt;(sum if several)&quot;] --&gt; PI[&quot;P Input = Σ bins&lt;br/&gt;P Good = Σ pass bins&quot;]
+    PI --&gt; FY[&quot;First Yield = P Good ÷ P Input&quot;]
+    PI --&gt; RF[&quot;Retestable fails&lt;br/&gt;= fail bins that are not HB8/9/11&quot;]
+    O[&quot;O rows of the lot&quot;] --&gt; SR[&quot;Split into retest rounds&lt;br/&gt;(see 4.3)&quot;]
+    RF --&gt; SR
+    SR --&gt; OG[&quot;Retest Good = Σ pass bins&lt;br/&gt;of all rounds&quot;]
+    OG --&gt; FG[&quot;Final Good = P Good + Retest Good&quot;]
+    FG --&gt; FNY[&quot;Final Yield = Final Good ÷ P Input&quot;]
+    SR --&gt; FB[&quot;Final bins =&lt;br/&gt;non-retestable bins from every test&lt;br/&gt;+ fail bins of the LAST round&quot;]
+    FB --&gt; NR{&quot;Final Good + Final fails&lt;br/&gt;= P Input ?&quot;}
+    NR --&gt;|&quot;less&quot;| NRB[&quot;Remainder → bin NR&lt;br/&gt;(not retested)&quot;]
+    NR --&gt;|&quot;more&quot;| W[&quot;⚠ warning:&lt;br/&gt;duplicate retest data?&quot;]
+    NR --&gt;|&quot;equal&quot;| OK[&quot;✓ balanced&quot;]</pre><details><summary>Mermaid source</summary><pre class="src">flowchart TD
+    P[&quot;P rows of the lot&lt;br/&gt;(sum if several)&quot;] --&gt; PI[&quot;P Input = Σ bins&lt;br/&gt;P Good = Σ pass bins&quot;]
+    PI --&gt; FY[&quot;First Yield = P Good ÷ P Input&quot;]
+    PI --&gt; RF[&quot;Retestable fails&lt;br/&gt;= fail bins that are not HB8/9/11&quot;]
+    O[&quot;O rows of the lot&quot;] --&gt; SR[&quot;Split into retest rounds&lt;br/&gt;(see 4.3)&quot;]
+    RF --&gt; SR
+    SR --&gt; OG[&quot;Retest Good = Σ pass bins&lt;br/&gt;of all rounds&quot;]
+    OG --&gt; FG[&quot;Final Good = P Good + Retest Good&quot;]
+    FG --&gt; FNY[&quot;Final Yield = Final Good ÷ P Input&quot;]
+    SR --&gt; FB[&quot;Final bins =&lt;br/&gt;non-retestable bins from every test&lt;br/&gt;+ fail bins of the LAST round&quot;]
+    FB --&gt; NR{&quot;Final Good + Final fails&lt;br/&gt;= P Input ?&quot;}
+    NR --&gt;|&quot;less&quot;| NRB[&quot;Remainder → bin NR&lt;br/&gt;(not retested)&quot;]
+    NR --&gt;|&quot;more&quot;| W[&quot;⚠ warning:&lt;br/&gt;duplicate retest data?&quot;]
+    NR --&gt;|&quot;equal&quot;| OK[&quot;✓ balanced&quot;]</pre></details></section>
+<section class="card" id="d3"><h2>4.3 Splitting retest (O) rows into rounds</h2><pre class="mermaid">flowchart TD
+    S[&quot;All O rows of one lot&quot;] --&gt; Q1{&quot;Every row numbered?&lt;br/&gt;O1, O2, O3 …&quot;}
+    Q1 --&gt;|&quot;Yes&quot;| N[&quot;Round = the number&lt;br/&gt;(same number → merged)&quot;]
+    Q1 --&gt;|&quot;No&quot;| SORT[&quot;Sort by time,&lt;br/&gt;then by Input (largest first)&quot;]
+    SORT --&gt; LOOP[&quot;Take next row&quot;]
+    LOOP --&gt; Q2{&quot;Later time AND&lt;br/&gt;Input = retestable fails&lt;br/&gt;of current round?&quot;}
+    Q2 --&gt;|&quot;Yes&quot;| NEW[&quot;Start a new round&quot;]
+    Q2 --&gt;|&quot;No&quot;| Q3{&quot;Current round Input + row Input&lt;br/&gt;≤ expected retest qty?&quot;}
+    Q3 --&gt;|&quot;Yes&quot;| SAME[&quot;Same round&lt;br/&gt;(retest split over testers)&quot;]
+    Q3 --&gt;|&quot;No&quot;| NEW
+    NEW --&gt; EXP[&quot;Expected qty for next round&lt;br/&gt;= retestable fails of this round&quot;]
+    SAME --&gt; LOOP
+    EXP --&gt; LOOP</pre><details><summary>Mermaid source</summary><pre class="src">flowchart TD
+    S[&quot;All O rows of one lot&quot;] --&gt; Q1{&quot;Every row numbered?&lt;br/&gt;O1, O2, O3 …&quot;}
+    Q1 --&gt;|&quot;Yes&quot;| N[&quot;Round = the number&lt;br/&gt;(same number → merged)&quot;]
+    Q1 --&gt;|&quot;No&quot;| SORT[&quot;Sort by time,&lt;br/&gt;then by Input (largest first)&quot;]
+    SORT --&gt; LOOP[&quot;Take next row&quot;]
+    LOOP --&gt; Q2{&quot;Later time AND&lt;br/&gt;Input = retestable fails&lt;br/&gt;of current round?&quot;}
+    Q2 --&gt;|&quot;Yes&quot;| NEW[&quot;Start a new round&quot;]
+    Q2 --&gt;|&quot;No&quot;| Q3{&quot;Current round Input + row Input&lt;br/&gt;≤ expected retest qty?&quot;}
+    Q3 --&gt;|&quot;Yes&quot;| SAME[&quot;Same round&lt;br/&gt;(retest split over testers)&quot;]
+    Q3 --&gt;|&quot;No&quot;| NEW
+    NEW --&gt; EXP[&quot;Expected qty for next round&lt;br/&gt;= retestable fails of this round&quot;]
+    SAME --&gt; LOOP
+    EXP --&gt; LOOP</pre></details></section>
+<section class="card" id="d4"><h2>4.4 SBL HOLD decision</h2><pre class="mermaid">flowchart TD
+    L[&quot;Lot&lt;br/&gt;(Product, Stage)&quot;] --&gt; R[&quot;Find matching SBL rules&lt;br/&gt;most specific wins:&lt;br/&gt;Product+Stage › Product › Stage › *&quot;]
+    R --&gt; NONE{&quot;Any rule?&quot;}
+    NONE --&gt;|&quot;No&quot;| NA[&quot;– no limit&quot;]
+    NONE --&gt;|&quot;Yes&quot;| EACH[&quot;For each rule&quot;]
+    EACH --&gt; T{&quot;Item type&quot;}
+    T --&gt;|&quot;HBn, Basis P&quot;| BP[&quot;% = P bin count ÷ P Input&quot;]
+    T --&gt;|&quot;HBn, Basis Final&quot;| BF[&quot;% = Final bin count ÷ P Input&quot;]
+    T --&gt;|&quot;FIRST / FINAL_YIELD&quot;| Y[&quot;Yield vs Min_Pct&quot;]
+    BP &amp; BF --&gt; C1{&quot;% &gt; Max_Pct&lt;br/&gt;or pcs &gt; Max_Qty ?&quot;}
+    Y --&gt; C2{&quot;Yield &lt; Min_Pct ?&quot;}
+    C1 --&gt;|&quot;Yes&quot;| V[&quot;Violation&lt;br/&gt;e.g. HB5 1.59% &gt; 1.4%&quot;]
+    C2 --&gt;|&quot;Yes&quot;| V
+    C1 --&gt;|&quot;No&quot;| P1[&quot;OK&quot;]
+    C2 --&gt;|&quot;No&quot;| P1
+    V --&gt; PEND{&quot;Only Final-basis violations&lt;br/&gt;and lot not retested yet?&quot;}
+    PEND --&gt;|&quot;Yes&quot;| W[&quot;◐ 待重測&lt;br/&gt;(wait for retest)&quot;]
+    PEND --&gt;|&quot;No&quot;| H[&quot;● HOLD&quot;]
+    P1 --&gt; ALL{&quot;All rules OK?&quot;}
+    ALL --&gt;|&quot;Yes&quot;| PASS[&quot;✓ PASS&quot;]</pre><details><summary>Mermaid source</summary><pre class="src">flowchart TD
+    L[&quot;Lot&lt;br/&gt;(Product, Stage)&quot;] --&gt; R[&quot;Find matching SBL rules&lt;br/&gt;most specific wins:&lt;br/&gt;Product+Stage › Product › Stage › *&quot;]
+    R --&gt; NONE{&quot;Any rule?&quot;}
+    NONE --&gt;|&quot;No&quot;| NA[&quot;– no limit&quot;]
+    NONE --&gt;|&quot;Yes&quot;| EACH[&quot;For each rule&quot;]
+    EACH --&gt; T{&quot;Item type&quot;}
+    T --&gt;|&quot;HBn, Basis P&quot;| BP[&quot;% = P bin count ÷ P Input&quot;]
+    T --&gt;|&quot;HBn, Basis Final&quot;| BF[&quot;% = Final bin count ÷ P Input&quot;]
+    T --&gt;|&quot;FIRST / FINAL_YIELD&quot;| Y[&quot;Yield vs Min_Pct&quot;]
+    BP &amp; BF --&gt; C1{&quot;% &gt; Max_Pct&lt;br/&gt;or pcs &gt; Max_Qty ?&quot;}
+    Y --&gt; C2{&quot;Yield &lt; Min_Pct ?&quot;}
+    C1 --&gt;|&quot;Yes&quot;| V[&quot;Violation&lt;br/&gt;e.g. HB5 1.59% &gt; 1.4%&quot;]
+    C2 --&gt;|&quot;Yes&quot;| V
+    C1 --&gt;|&quot;No&quot;| P1[&quot;OK&quot;]
+    C2 --&gt;|&quot;No&quot;| P1
+    V --&gt; PEND{&quot;Only Final-basis violations&lt;br/&gt;and lot not retested yet?&quot;}
+    PEND --&gt;|&quot;Yes&quot;| W[&quot;◐ 待重測&lt;br/&gt;(wait for retest)&quot;]
+    PEND --&gt;|&quot;No&quot;| H[&quot;● HOLD&quot;]
+    P1 --&gt; ALL{&quot;All rules OK?&quot;}
+    ALL --&gt;|&quot;Yes&quot;| PASS[&quot;✓ PASS&quot;]</pre></details></section>
+<section class="card" id="d5"><h2>4.5 Folder auto-refresh</h2><pre class="mermaid">sequenceDiagram
+    actor U as Engineer
+    participant H as test_summary_trend.html
+    participant F as CSV folder
+    U-&gt;&gt;H: 📁 選擇資料夾 (first time only)
+    H-&gt;&gt;F: read all *.csv
+    H--&gt;&gt;U: charts, KPI, hold list
+    Note over H: folder handle saved in browser
+    loop every N seconds (if enabled)
+        H-&gt;&gt;F: check file names / sizes / dates
+        alt something changed
+            H-&gt;&gt;F: re-read all CSV
+            H--&gt;&gt;U: refresh everything
+        else no change
+            H--&gt;&gt;H: do nothing
+        end
+    end</pre><details><summary>Mermaid source</summary><pre class="src">sequenceDiagram
+    actor U as Engineer
+    participant H as test_summary_trend.html
+    participant F as CSV folder
+    U-&gt;&gt;H: 📁 選擇資料夾 (first time only)
+    H-&gt;&gt;F: read all *.csv
+    H--&gt;&gt;U: charts, KPI, hold list
+    Note over H: folder handle saved in browser
+    loop every N seconds (if enabled)
+        H-&gt;&gt;F: check file names / sizes / dates
+        alt something changed
+            H-&gt;&gt;F: re-read all CSV
+            H--&gt;&gt;U: refresh everything
+        else no change
+            H--&gt;&gt;H: do nothing
+        end
+    end</pre></details></section>
+<p style="color:var(--ink2);font-size:12px">Generated from README.md by tools/build_flowchart.py — edit the README, then re-run the script.</p>
+</main>
+<script>
+const saved=localStorage.getItem('flow.theme'); if(saved) document.documentElement.dataset.theme=saved;
+else if(matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme='dark';
+const SRC=[...document.querySelectorAll('pre.mermaid')].map(p=>p.textContent);
+async function draw(){
+  if(!window.mermaid){ document.getElementById('offline').style.display='block'; document.querySelectorAll('pre.mermaid').forEach(p=>p.style.textAlign='left'); return; }
+  const dark=document.documentElement.dataset.theme==='dark';
+  mermaid.initialize({startOnLoad:false,theme:dark?'dark':'default',securityLevel:'strict',flowchart:{htmlLabels:true,curve:'basis'},fontFamily:'system-ui,"Microsoft JhengHei",sans-serif'});
+  document.querySelectorAll('pre.mermaid').forEach((p,i)=>{ p.removeAttribute('data-processed'); p.textContent=SRC[i]; });
+  await mermaid.run({querySelector:'pre.mermaid'});
+}
+document.getElementById('theme').onclick=()=>{ const d=document.documentElement; d.dataset.theme=d.dataset.theme==='dark'?'light':'dark'; localStorage.setItem('flow.theme',d.dataset.theme); draw(); };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js" onload="draw()" onerror="draw()"></script>
+</body></html>

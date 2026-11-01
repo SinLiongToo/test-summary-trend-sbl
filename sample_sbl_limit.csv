@@ -1,0 +1,16 @@
+﻿Product,Stage,Bin,Basis,Max_Pct,Max_Qty,Min_Pct,Remark
+*,*,HB2,P,1.00,,,
+*,*,HB3,P,0.80,,,
+*,*,HB4,P,1.20,,,Function
+*,*,HB5,P,1.40,,,Scan
+*,*,HB6,P,0.60,,,
+*,*,HB7,P,1.30,,,DC Param
+*,*,HB8,Final,0.50,,,Open/Short (non-retestable)
+*,*,HB9,Final,0.40,,,
+*,*,HB10,P,0.80,,,
+*,*,HB11,Final,0.30,8,,Burn/Damage
+*,*,HB12,P,0.40,,,
+XYZ789,*,HB4,P,1.10,,,stricter for XYZ789
+*,*,FIRST_YIELD,,,,94.5,
+*,*,FINAL_YIELD,,,,96.5,
+ABC123,FT2,FINAL_YIELD,,,,97.0,
