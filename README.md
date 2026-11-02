@@ -4,7 +4,8 @@ A single HTML file that reads semiconductor **test summary CSV** files and autom
 
 - **First Yield** and **Final Yield** for every lot (first pass `P` + retests `O`)
 - **Bin trends** (per lot / day / week / month / quarter / year), Pareto and heatmap
-- **Tester / Loadboard performance**, and a Tester × Loadboard matrix
+- **Yield / bin trends by Product or Test Center** (one line per product or test center)
+- **Tester / Loadboard / Test Center performance**, and a Tester × Loadboard matrix
 - **SBL (Statistical Bin Limit) check**: which lots are on **HOLD** and which bin broke the limit
 
 It runs fully offline in the browser (no install, no server, no internet).
@@ -47,7 +48,7 @@ It runs fully offline in the browser (no install, no server, no internet).
 | File | Purpose |
 |---|---|
 | `test_summary_trend.html` | The tool, with this README and the flowcharts built in (📖 說明 README) |
-| `sample_test_summary.csv` | Sample test summary: 150 lots, P + O, multiple retests |
+| `sample_test_summary.csv` | Sample test summary: 162 lots at 3 test centers, P + O, multiple retests |
 | `sample_bin_config.csv` | Sample bin config: HB1 = pass; HB8 / HB9 / HB11 not retestable |
 | `sample_sbl_limit.csv` | Sample SBL limits |
 | `flowchart.html` | Optional: the Mermaid version of the flowcharts (needs internet). The same diagrams are built into the tool |
@@ -62,9 +63,9 @@ Column names are **not case-sensitive**, the column order doesn't matter, and th
 ### 3.1 Test summary CSV
 
 ```csv
-Date,Lot,Product,Stage,TestMode,Tester,Loadboard,Input,HB1,HB2,HB3,...,HBn
-2026/09/01 02:00,LA02601,ABC123,FT1,P,T02,LB-C1,3864,3747,16,13,...
-2026/09/01 05:00,LA02601,ABC123,FT1,O,T02,LB-C1,96,56,5,3,...
+Date,Lot,Product,Stage,TestCenter,TestMode,Tester,Loadboard,Input,HB1,HB2,HB3,...,HBn
+2026/09/01 02:00,LA02601,ABC123,FT1,Kaohsiung,P,T02,LB-C1,3864,3747,16,13,...
+2026/09/01 05:00,LA02601,ABC123,FT1,Kaohsiung,O,T02,LB-C1,96,56,5,3,...
 ```
 
 | Column | Meaning | Accepted names |
@@ -73,6 +74,7 @@ Date,Lot,Product,Stage,TestMode,Tester,Loadboard,Input,HB1,HB2,HB3,...,HBn
 | Lot | Lot ID | `Lot`, `Lot ID`, `LotNo` … |
 | Product | Product / device | `Product`, `Device`, `Part` … |
 | Stage | Test stage | `Stage`, `Step` … |
+| Test Center | Test site / test house (optional). Used by the filter, **Compare by** and Test Center performance | `Test Center`, `TestCenter`, `Test Site`, `Site`, `Location`, `Subcon`, `OSAT` … |
 | TestMode | `P` = first test, `O` = retest (`O1`, `O2` … allowed) | `TestMode`, `Mode`, `Flow` |
 | Tester | Tester ID | `Tester`, `ATE` … |
 | Loadboard | Loadboard ID | `Loadboard`, `LB`, `DIB` … |
@@ -144,7 +146,7 @@ flowchart TB
     D --> E["Per lot:<br/>split retest rounds<br/>First / Final Yield<br/>Final bins"]
     E --> F["SBL check<br/>HOLD / PASS"]
     C3 --> F
-    F --> G["Filters (multi-select)<br/>Product · Stage · Tester · LB<br/>Bin · SBL status · Date · Lot"]
+    F --> G["Filters (multi-select)<br/>Product · Test Center · Stage<br/>Tester · LB · Bin · SBL · Date · Lot"]
     G --> V1["KPI tiles"]
     G --> V2["Yield & Bin trend"]
     G --> V3["Pareto & heatmap"]
@@ -265,6 +267,7 @@ sequenceDiagram
 | Group | Filters | Notes |
 |---|---|---|
 | Product / Stage | lots | |
+| Test Center | lots | Test center of the lot's P test |
 | Tester / Loadboard | lots | A lot is included if **any** of its P testers / loadboards is selected |
 | Bin | bin charts only | Bin trend, Pareto, heatmap, Top fail bins. Lot counts and yields are **not** changed |
 | SBL 判定 | lots | HOLD / 待重測 / PASS / no limit |
@@ -282,7 +285,7 @@ sequenceDiagram
 ![Filters on the left](docs/images/12_filters_left.png)
 
 **Find a filter by name.** Type in **🔍 找篩選**. Press `/` anywhere to jump to it, and `Esc` to clear it.
-- **Filter names**, in English or Chinese: `tester` / `機台`, `loadboard` / `LB`, `product` / `產品`, `stage` / `站別`, `bin`, `sbl` / `hold`, `date` / `日期`, `lot`, `trend`, `basis`. Only the matching filters are shown, with all their values.
+- **Filter names**, in English or Chinese: `tester` / `機台`, `loadboard` / `LB`, `product` / `產品`, `site` / `test center` / `測試廠`, `stage` / `站別`, `bin`, `sbl` / `hold`, `date` / `日期`, `lot`, `trend`, `basis`. Only the matching filters are shown, with all their values.
 - **Filter values**, e.g. `T03`, `LB-B2`, `scan` (a bin description): the group containing the value opens and shows only the matching values, so you can tick them directly.
 - Groups opened by the search close again when you clear it.
 
@@ -310,6 +313,7 @@ sequenceDiagram
 ![Yield trend](docs/images/04_yield_trend.png)
 - **時間單位 / Time unit** above the chart: Lot / day / week / month / quarter / year, for this chart only (the filter panel's Trend unit sets all charts at once).
 - **圖表 / Chart**: **Line** (weighted First / Final Yield), **Loss bars** (whole bar = First Yield loss; lower part = Final loss still failing, upper part = recovered by retest), or **Box plot** (spread of lot yields per period: box = Q1–Q3, thick line = median, whiskers = 1.5×IQR, circles = outlier lots). Box plots need a time unit, so choosing it from per-lot switches to weekly.
+- **分組比較 / Compare by**: **None / Product / Test Center** draws one line (or one set of bars / boxes) per product or test center, for **First** or **Final** Yield (toggle next to it). Each product / test center keeps its colour (ranked by P Input), so filtering never repaints it; with more than 8, everything after the first 7 is merged into "Other". It needs a time unit, so choosing it from per-lot switches to weekly.
 - Red ▼ at the top = this point contains a HOLD lot.
 - Dashed lines = yield limits.
 - Hover a point for details.
@@ -318,6 +322,7 @@ sequenceDiagram
 ![Bin trend](docs/images/05_bin_trend.png)
 - Pick up to 8 bins. Each bin keeps its own colour.
 - Own **time unit** and **chart** choice: **Line**, **Stacked bars** (total of the selected bins) or **Grouped bars**.
+- **Compare by Product / Test Center**: each line = the selected bins combined for one product or test center (tick a single bin to see just that bin). Stacked bars are shown as grouped bars.
 - Dashed lines = SBL limits. They are shown when every lot in the view uses the same limit; filter by Product / Stage to see product-specific limits.
 
 ### Pareto and heatmap
@@ -325,8 +330,9 @@ sequenceDiagram
 ![Heatmap](docs/images/07_heatmap.png)
 - Heatmap colour is scaled per bin column. A red border with ▲ = over the SBL limit.
 
-### Tester / Loadboard performance
+### Tester / Loadboard / Test Center performance
 ![Tester performance](docs/images/08_tester_perf.png)
+- Tabs: **Tester / Loadboard / Tester × Loadboard / Test Center / Product**.
 - **First Yield** is counted on the tester that ran P. **Recovery** is counted on the tester that ran the retest.
 - ▼ = First Yield significantly below average: more than 2σ (binomial) and more than 0.2 pp.
 - **比平均高最多** = the bin that is most above the average on this tester. This is usually the root cause.
